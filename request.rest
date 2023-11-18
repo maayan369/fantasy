@@ -1,0 +1,16 @@
+GET http://localhost:27017/users
+
+
+###
+
+POST http://localhost:27017/users
+Content-Type: application/json
+
+{
+    "email": "na",
+    "id": "la",
+    "password": "is",
+    "username": "ok",
+}
+
+
