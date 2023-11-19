@@ -33,5 +33,4 @@ module.exports = {
     getCurrentUser,
     userLeave,
     getRoomUsers,
-    chatUsers
 };

@@ -8,7 +8,7 @@ const bodyParser = require('body-parser');
 
 
 const formatMessage = require('./utils/messages');
-const { userJoin, getCurrentUser, userLeave, getRoomUsers, chatUsers } = require('./utils/chatUsers');
+const { userJoin, getCurrentUser, userLeave, getRoomUsers} = require('./utils/chatUsers');
 
 
 const app = express();
@@ -83,21 +83,19 @@ mongoose.connect("mongodb://localhost:27017/FantasyDB")
 
 //add data (schema)
 const userSchema = new mongoose.Schema({
-    id: String,
     email: String,
     username: String,
     password: String,
 });
 
 const User = new mongoose.model('User', userSchema);
-//module.exports = User;
-//POST
 
+//POST
 app.post('/signup', async (req, res) => {
-    const { username, email, password, userId } = req.body;
+    const { username, email, password } = req.body;
 
     try{
-        const newUser = new User({ username, email, password, userId });
+        const newUser = new User({ username, email, password});
         const savedUser = await newUser.save();
         res.status(201).json(savedUser);
     } catch (error) {
@@ -106,20 +104,6 @@ app.post('/signup', async (req, res) => {
     }
  });
 
-  
-// app.post("/users", async(req, res) => {
-//     console.log("inside post function");
-
-//     const data = new monmodel({
-//         email:req.body.email,
-//         id:req.body.id,
-//         password:req.body.password,
-//         username:req.body.username,
-//     })
-
-//     const val = await data.save();
-//     res.json(val);
-// });
 
 
 const PORT = process.env.PORT || 3000;

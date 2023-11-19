@@ -6,15 +6,6 @@ function setFormMessage(formElement, type, message) {
     messageElement.classList.add(`form__message--${type}`);
 };
 
-function setInputError(inputElement, message) {
-    inputElement.classList.add("form__input--error");
-    inputElement.parentElement.querySelector(".form__input--error-message").textContent = message;
-};
-
-function clearInputError(inputElement) {
-    inputElement.classList.remove("form__input--error");
-    inputElement.parentElement.querySelector(".form__input--error-message").textContent = "";
-}
 
 document.addEventListener("DOMContentLoaded", () => {
     const loginForm = document.querySelector("#login");
@@ -40,28 +31,7 @@ document.addEventListener("DOMContentLoaded", () => {
         setFormMessage(loginForm, "error", "שם משתמש או סיסמא אינם נכונים");
     });
 
-
-    document.querySelectorAll(".form__input").forEach(inputElement => {
-
-        // const password = document.getElementById('signupPassword').value;
-        // const confirmPassword = document.getElementById('signupConfirmPassword').value;
-
-        inputElement.addEventListener("blur", e => {
-            
-            if (e.target.id === "signupUsername" && e.target.value.length > 0 && e.target.value.length < 6) {
-                setInputError(inputElement, "שם משתמש חייב להכיל לפחות 6 תווים");
-            };
-            // if (e.target.id === "signupConfirmPassword" && confirmPassword !== password) {
-            //     setInputError(inputElement, "הסיסמא לא אותה סיסמא");
-            // };
-        });
-
-        inputElement.addEventListener("input", e => {
-            clearInputError(inputElement);
-        });
-    });
-
-
 });
+
 
 
