@@ -1,3 +1,15 @@
+// const fantasyUser = require('./models/User');
+
+// async function getUserByUsername(username) {
+//     try {
+//         const user = await UserActivation.findOne({ username });
+//         return user;
+//     } catch (error) {
+//         console.error('error finding user:', error);
+//         throw error;
+//     }
+// };
+
 function setFormMessage(formElement, type, message) {
     const messageElement = formElement.querySelector(".form__message")
 
@@ -23,14 +35,35 @@ document.addEventListener("DOMContentLoaded", () => {
         createAccountForm.classList.add("form--hidden")
     });
 
-    loginForm.addEventListener("submit",  e => {
-        e.preventDefault();
+    loginForm.addEventListener("submit",  async function(event) {
+        event.preventDefault();
 
-        //perform your AJAX/fetch login
-
-        setFormMessage(loginForm, "error", "שם משתמש או סיסמא אינם נכונים");
+        const loginUsername = document.getElementById('loginUsername').value;
+        const loginPassword = document.getElementById('loginPassword').value;
+        
+        try {
+            const response = await fetch('/login', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ loginUsername, loginPassword })
+            });
+    
+            if (response.ok) {
+              // Redirect to a dashboard or perform other actions for successful login
+              console.log('Login successful');
+              window.location.href = "http://localhost:3000/areas/thePalace.html";
+              //יהיה צריך להוסיף שזה יהיה לפי משתמש ואם הוא לא מחובר אז זה לא יעבוד..
+            } else {
+              const errorMessage = await response.json();
+              console.error('Login failed:', errorMessage.message);
+              setFormMessage(loginForm, "error", "שם משתמש או סיסמא אינם נכונים");
+            }
+          } catch (error) {
+            console.error('Error during login:', error);
+          }
     });
-
 });
 
 

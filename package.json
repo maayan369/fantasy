@@ -4,7 +4,7 @@
   "description": "socket realtime chat",
   "main": "server.js",
   "scripts": {
-    "dev": "nodemon server"
+    "dev": "nodemon server.js"
   },
   "author": "Maayanosh",
   "license": "ISC",
@@ -15,6 +15,7 @@
     "hbs": "^4.2.0",
     "moment": "^2.29.4",
     "mongoose": "^8.0.0",
+    "nodemailer": "^6.9.7",
     "socket.io": "^4.7.2"
   },
   "devDependencies": {
