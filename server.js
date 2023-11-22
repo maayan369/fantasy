@@ -12,10 +12,9 @@ const bcrypt = require('bcrypt');
 
 const formatMessage = require('./utils/messages');
 const { userJoin, getCurrentUser, userLeave, getRoomUsers } = require('./utils/chatUsers');
+const { User, getUserByUsername, getUserByTokenAndConfirm, verifyPassword } = require('./utils/Users.js')
 
 const { sendConfirmEmail } = require('./mailer/confirmEmail.js');
-
-const confirmationRoutes = require('./routes/confirmationRoute');
 
 
 app.use(bodyParser.json());
@@ -70,8 +69,7 @@ io.on('connection', socket => {
 //לא יודעת אם צריך:
 // useNewUrlParser: true,
 // useUnifiedTopology: true,
-
-//connect to mongodb
+//Connect to mongodb
 mongoose.connect("mongodb://localhost:27017/FantasyDB")
 .then(() => {
     console.log('Connected to MongoDB');
@@ -80,61 +78,6 @@ mongoose.connect("mongodb://localhost:27017/FantasyDB")
     console.error('error:', err);
 });
 
-
-//add data (schema) need to add the confirm thing and change to false
-const userSchema = new mongoose.Schema({
-    id: String,
-    email: String,
-    username: String,
-    password: String,
-    // emailConfirmationToken: String,
-    confirmed: {
-        type: Boolean,
-        default: false,
-    },
-    confirmationToken: String,
-});
-
-const User = new mongoose.model('User', userSchema);
-
-// Function to retrieve a user by username for login
-async function getUserByUsername(username) {
-    try {
-      const user = await User.findOne({ username });
-      return user;
-    } catch (error) {
-      console.error('Error finding user:', error);
-      throw error;
-    }
-};
-
-async function getUserByTokenAndConfirm(token) {
-    try {
-        // Update user's 'confirmed' field to true in the database
-        const user = await User.findOneAndUpdate(
-            { confirmationToken: token },
-            { confirmed: true },
-            { new: true } // Get the modified document as a result
-        );
-
-        return user; // Return the user object
-    } catch (error) {
-        console.error('Error finding user:', error);
-        throw error;
-    }
-};
-
-
-// Function to verify password
-async function verifyPassword(password, hashedPassword) {
-    try {
-      const passwordMatch = await bcrypt.compare(password, hashedPassword);
-      return passwordMatch;
-    } catch (error) {
-    //   console.error('Error verifying password:', error);
-      throw error;
-    }
-};
 
 //POST login
 app.post('/login', async (req, res) => {

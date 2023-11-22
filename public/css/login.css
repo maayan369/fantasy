@@ -57,7 +57,7 @@ body {
 
 }
 
-.form__message--success {
+.form__message--confirmed {
     color: var(--color-success);
 }
 

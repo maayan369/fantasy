@@ -2,7 +2,7 @@ function setFormMessage(formElement, type, message) {
     const messageElement = formElement.querySelector(".form__message")
 
     messageElement.textContent = message;
-    messageElement.classList.remove("form__message--success", "form__message--error");
+    messageElement.classList.remove("form__message--confirmed", "form__message--error");
     messageElement.classList.add(`form__message--${type}`);
 };
 
@@ -23,6 +23,11 @@ document.addEventListener("DOMContentLoaded", () => {
         loginForm.classList.remove("form--hidden")
         createAccountForm.classList.add("form--hidden")
     });
+
+    //Email confirmed note
+    // if (true) {
+    //   setFormMessage(loginForm, "confirmed", "המייל אומת בהצלחה!");
+    // };
 
     //submit login
     loginForm.addEventListener("submit",  async function(event) {
