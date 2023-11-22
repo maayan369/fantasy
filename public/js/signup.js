@@ -6,6 +6,7 @@ const signupConfirmPasswordInput = document.getElementById("signupConfirmPasswor
 
 let sendForm = true;
 
+
 function setInputError(inputElement, message) {
   inputElement.classList.add("form__input--error");
   inputElement.parentElement.querySelector(".form__input--error-message").textContent = message;
@@ -20,6 +21,7 @@ function clearInputError(inputElement) {
 //Set if the form can be sent
 document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".form__input").forEach(inputElement => {
+
     //username sign up error check
     signupUsernameInput.addEventListener("blur", e => {
       if (signupUsernameInput.value.length > 0 && signupUsernameInput.value.length < 6) {
@@ -36,23 +38,6 @@ document.addEventListener("DOMContentLoaded", () => {
         isFormValid();
       }
     });
-
-    // //email sign up error check--later(now i have automatic email type input)
-    // signupEmailInput.addEventListener("blur", e => {
-    //   if (signupEmailInput.value.length > 0 && signupUsernameInput) {
-    //     setInputError(signupEmailInput, "יש להכניס כתובת אימייל תקינה");
-    //     sendForm = false;
-    //   } else {
-    //     clearInputError(signupEmailInput);
-    //     isFormValid();
-    //   }
-    // });
-    // signupEmailInput.addEventListener("input", () => {
-    //   if (signupEmailInput.value.length === 0) {
-    //     clearInputError(signupEmailInput);
-    //     isFormValid();
-    //   }
-    // });
 
     //confirm password sign up error check
     signupConfirmPasswordInput.addEventListener("blur", e => {
@@ -93,11 +78,17 @@ function isFormValid() {
 function generateUniqueId() {
   const timestamp = Date.now().toString(36); // Convert current timestamp to base 36 string
   const randomString = Math.random().toString(36).substring(2, 10); // Generate a random string
-
   const uniqueId = timestamp + randomString; // Concatenate timestamp and random string
   return uniqueId;
 };
 
+function generateUniqueToken() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
 
 // Function to handle form submission
 signupForm.addEventListener('submit', async function(event) {
@@ -114,13 +105,16 @@ signupForm.addEventListener('submit', async function(event) {
   const email = document.getElementById('signupEmail').value;
   const password = document.getElementById('signupPassword').value;
   const id = generateUniqueId();
+  const confirmationToken = generateUniqueToken();
+  const confirmationLink = `http://localhost:3000/confirmation/confirm-email/${confirmationToken}`;
+
   try {
     const response = await fetch('/signup', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ username, email, password, id }),
+      body: JSON.stringify({ username, email, password, id, confirmationToken, confirmationLink }),
     });
 
     if (response.ok) {

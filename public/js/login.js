@@ -1,15 +1,3 @@
-// const fantasyUser = require('./models/User');
-
-// async function getUserByUsername(username) {
-//     try {
-//         const user = await UserActivation.findOne({ username });
-//         return user;
-//     } catch (error) {
-//         console.error('error finding user:', error);
-//         throw error;
-//     }
-// };
-
 function setFormMessage(formElement, type, message) {
     const messageElement = formElement.querySelector(".form__message")
 
@@ -20,6 +8,7 @@ function setFormMessage(formElement, type, message) {
 
 
 document.addEventListener("DOMContentLoaded", () => {
+    //link login and sign up forms
     const loginForm = document.querySelector("#login");
     const createAccountForm = document.querySelector("#createAccount");  
     
@@ -35,6 +24,7 @@ document.addEventListener("DOMContentLoaded", () => {
         createAccountForm.classList.add("form--hidden")
     });
 
+    //submit login
     loginForm.addEventListener("submit",  async function(event) {
         event.preventDefault();
 
@@ -65,6 +55,8 @@ document.addEventListener("DOMContentLoaded", () => {
           }
     });
 });
+
+
 
 
 

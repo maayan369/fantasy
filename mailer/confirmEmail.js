@@ -1,23 +1,10 @@
 const nodemailer = require('nodemailer');
-const fs = require('fs');
-const path = require('path');
 
 // Construct the full path to the HTML file
-const filePath = path.join(__dirname, 'confirmEmail.html');
+// const html = path.join(__dirname, 'confirmEmail.html');
 
-async function main() {
-  try {
-    // Read the HTML file
-    const confirmEmailHtml = await new Promise((resolve, reject) => {
-      fs.readFile(filePath, 'utf8', (err, data) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(data);
-        }
-      });
-    });
-
+async function sendConfirmEmail(username, email, password, confirmationLink) {
+  
     const transporter = nodemailer.createTransport({
       host: 'smtp.gmail.com',
       port: 465,
@@ -31,19 +18,34 @@ async function main() {
       }
     });
 
+    
     const info = await transporter.sendMail({
-      from: 'Fantasyland Admin <fantasyland.adm@gmail.com>',
-      to: 'ymaayan2003@gmail.com',
-      subject: 'Testing, testing, 123',
-      html: confirmEmailHtml,
+      from: 'Fantasyland <fantasyland.adm@gmail.com>',
+      to: email,
+      subject: 'אימות כתובת מייל',
+      html: `
+      <div dir="rtl" style="text-align: right;">
+      <h1>שלום ${username}</h1>
+      <p>אנחנו שמחים שהצטרפת לפנטזיה!</p>
+      <br>
+      <p>פרטי ההתחברות שלך:</p>
+      <p>שם משתמש: ${username}</p>
+      <p>סיסמא: ${password}</p>
+      <p>מומלץ שלא לשתף את פרטי ההתחברות עם אדם אחר</p>
+      <br>
+      <p>כדי להתחיל לשחק עליך לאמת את כתובת המייל</p>
+      <a href="${confirmationLink}">
+        <button type="button">אימות כתובת מייל</button>
+      </a>
+      <p>בברכה ומשחק נעים, צוות פנטזיה</p>
+      </div>
+      `,
     });
 
-    console.log('message sent:', info.messageId);
-  } catch (error) {
-    console.error('Error:', error);
-  }
+    console.log('Confirmation email sent:', info.messageId);
+  
 }
 
 module.exports = {
-  main,
+    sendConfirmEmail,
 };
