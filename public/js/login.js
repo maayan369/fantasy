@@ -24,7 +24,7 @@ document.addEventListener("DOMContentLoaded", () => {
         createAccountForm.classList.add("form--hidden")
     });
 
-    //Email confirmed note
+    // //Email confirmed note
     // if (true) {
     //   setFormMessage(loginForm, "confirmed", "המייל אומת בהצלחה!");
     // };

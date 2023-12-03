@@ -10,8 +10,11 @@ const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const bcrypt = require('bcrypt');
 
-const formatMessage = require('./utils/messages');
-const { userJoin, getCurrentUser, userLeave, getRoomUsers } = require('./utils/chatUsers');
+const session = require('express-session');
+const confirmationRouter = express.Router();
+// const areasRouter = require('./routes/areas.js');
+// const areasRouter = require('./routes/areas.js'); 
+
 const { User, getUserByUsername, getUserByTokenAndConfirm, verifyPassword } = require('./utils/Users.js')
 
 const { sendConfirmEmail } = require('./mailer/confirmEmail.js');
@@ -19,56 +22,37 @@ const { sendConfirmEmail } = require('./mailer/confirmEmail.js');
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 
-const botName = 'ChatCord Bot'
+app.use(session({
+  secret: 'j2who55ate430@my$!cookiesrandomran4912398islogin?#$',
+  resave: false,
+  saveUninitialized: false,
+}));
 
-// Run when client connects
-io.on('connection', socket => {
-    socket.on('joinRoom', ({ username, room }) => {
-        const user = userJoin(socket.id, username, room);
+// app.get('/thePalace.html', function(req, res, next) {
+//   if (req.session.isLoggedIn) {
+//     res.sendFile(path.join(__dirname, 'public', 'thePalace.html'));
+//   } else {
+//     res.redirect('/index.html');
+//   }
+// });
 
-        socket.join(user.room);
-
-        // welcome current user
-        socket.emit('message', formatMessage(botName, 'welcome to chatcord!'));
-
-        // broadcast when a user connects
-        socket.broadcast.to(user.room).emit('message', formatMessage(botName, `${user.username} has joined the chat`));
-
-        //send users and room info
-        io.to(user.room).emit('roomUsers', {
-            room: user.room,
-            users: getRoomUsers(user.room)
-        });
-    });
- 
-    // listen for chatMessage
-    socket.on('chatMessage', (msg) => {
-        const user = getCurrentUser(socket.id);
-        io.to(user.room).emit('message', formatMessage(user.username, msg));
-    });
-
-    // run when client disconnects
-    socket.on('disconnect', () => {
-        const user = userLeave(socket.id);
-
-        if(user) {
-            io.to(user.room).emit('message', formatMessage(botName, `${user.username} has left the chat`));
-
-            //send users and room info
-            io.to(user.room).emit('roomUsers', {
-                room: user.room,
-                chatUsers: getRoomUsers(user.room)
-            });
-        }
-    });
+app.use('/areas/:filename', function(req, res, next) {
+  const filename = req.params.filename; 
+  if (req.session.isLoggedIn) {
+    res.sendFile(path.join(__dirname, 'public', 'areas', filename));
+  } else {
+    res.redirect('/index.html');
+  }
 });
 
-//לא יודעת אם צריך:
-// useNewUrlParser: true,
-// useUnifiedTopology: true,
+
+app.use('/confirmation', confirmationRouter);
+// app.use('/areas', areasRouter);
+
 //Connect to mongodb
 mongoose.connect("mongodb://localhost:27017/FantasyDB")
 .then(() => {
@@ -79,13 +63,15 @@ mongoose.connect("mongodb://localhost:27017/FantasyDB")
 });
 
 
+
 //POST login
 app.post('/login', async (req, res) => {
     const { loginUsername, loginPassword } = req.body;
   
     try {
       const user = await getUserByUsername(loginUsername);
-  
+      
+      //check if there is a user with this user name
       if (!user) {
         return res.status(401).json({ message: 'Invalid username or password' });
       }
@@ -97,10 +83,13 @@ app.post('/login', async (req, res) => {
   
       // Verify the password
       const passwordMatch = await verifyPassword(loginPassword, user.password);
-  
       if (passwordMatch) {
-        // Passwords match - handle successful login
+
+        //login:
+        req.session.isLoggedIn = true;
+        req.session.username = loginUsername;
         return res.status(200).json({ message: 'Login successful' });
+
       } else {
         // Passwords do not match - handle invalid credentials
         return res.status(401).json({ message: 'Invalid username or password' });
@@ -109,7 +98,48 @@ app.post('/login', async (req, res) => {
       console.error('Login error:', error);
       res.status(500).send('Internal server error');
     }
-  });
+});
+
+app.get('/get-username', (req, res) => {
+  if (req.session.isLoggedIn) {
+
+    const username = req.session.username;
+    res.json({ username });
+
+  } else {
+    res.status(401).json({ message: 'Not logged in' });
+    // res.redirect('/index.html'); // Redirect to index if logged in
+  }
+});
+
+
+
+// app.get('/areas/', (req, res) => {
+//   if (req.session.isLoggedIn) {
+//     // Render the page with content
+//     res.render('areas', { username: req.session.username });
+//   } else {
+//     // Redirect or render a login page
+//     res.redirect('/index.html');
+//   }
+// });
+
+// app.get('/areas', (req, res, next) => {
+//   if (req.session.isLoggedIn) {
+//     next(); // Proceed to the next middleware/route handler if not logged in
+//     res.json({ username });
+//   } else {
+//     res.redirect('/index.html'); // Redirect to index if logged in
+//   }
+// });
+
+
+// POST logout
+app.post('/logout', (req, res) => {
+  req.session.isLoggedIn = false;
+  req.session.username = null;
+  res.send('Logged out successfully!');
+});
 
 //POST signup
 app.post('/signup', async (req, res) => {
@@ -128,11 +158,21 @@ app.post('/signup', async (req, res) => {
     } catch (error) {
         console.error('Error saving user:', error);
         res.status(500).send('Internal server error');
-    }
+    };
+
 });
 
-const router = express.Router();
-router.get('/confirm-email/:token', async (req, res) => {
+
+//routers:
+// areasRouter.use((req, res, next) => {
+//   if (req.session.isLoggedIn === true) {
+//     next(); // Proceed to the next middleware/route handler if not logged in
+//   } else {
+//     res.redirect('/index.html'); // Redirect to index if logged in
+//   }
+// });
+
+confirmationRouter.get('/confirm-email/:token', async (req, res) => {
     const token = req.params.token;
     try {
         const user = await getUserByTokenAndConfirm(token);
@@ -149,7 +189,6 @@ router.get('/confirm-email/:token', async (req, res) => {
     }
 });
 
-app.use('/confirmation', router);
 
 
 const PORT = process.env.PORT || 3000;

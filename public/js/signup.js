@@ -118,8 +118,8 @@ signupForm.addEventListener('submit', async function(event) {
     });
 
     if (response.ok) {
-      const data = await response.json();
-      console.log('User data sent to server:', data);
+      // const data = await response.json();
+      console.log('User data sent to server');
     } else {
       throw new Error('Failed to send data to server');
     }
