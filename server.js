@@ -12,8 +12,7 @@ const bcrypt = require('bcrypt');
 
 const session = require('express-session');
 const confirmationRouter = express.Router();
-// const areasRouter = require('./routes/areas.js');
-// const areasRouter = require('./routes/areas.js'); 
+const areasRouter = express.Router();
 
 const { User, getUserByUsername, getUserByTokenAndConfirm, verifyPassword } = require('./utils/Users.js')
 
@@ -23,25 +22,16 @@ const { sendConfirmEmail } = require('./mailer/confirmEmail.js');
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-app.use(express.static(path.join(__dirname, 'public')));
-
-
 app.use(session({
   secret: 'j2who55ate430@my$!cookiesrandomran4912398islogin?#$',
   resave: false,
   saveUninitialized: false,
 }));
 
-// app.get('/thePalace.html', function(req, res, next) {
-//   if (req.session.isLoggedIn) {
-//     res.sendFile(path.join(__dirname, 'public', 'thePalace.html'));
-//   } else {
-//     res.redirect('/index.html');
-//   }
-// });
 
 app.use('/areas/:filename', function(req, res, next) {
   const filename = req.params.filename; 
+
   if (req.session.isLoggedIn) {
     res.sendFile(path.join(__dirname, 'public', 'areas', filename));
   } else {
@@ -50,8 +40,8 @@ app.use('/areas/:filename', function(req, res, next) {
 });
 
 
-app.use('/confirmation', confirmationRouter);
-// app.use('/areas', areasRouter);
+app.use(express.static(path.join(__dirname, 'public')));
+
 
 //Connect to mongodb
 mongoose.connect("mongodb://localhost:27017/FantasyDB")
@@ -61,7 +51,6 @@ mongoose.connect("mongodb://localhost:27017/FantasyDB")
 .catch((err) => {
     console.error('error:', err);
 });
-
 
 
 //POST login
@@ -88,6 +77,7 @@ app.post('/login', async (req, res) => {
         //login:
         req.session.isLoggedIn = true;
         req.session.username = loginUsername;
+        
         return res.status(200).json({ message: 'Login successful' });
 
       } else {
@@ -100,6 +90,16 @@ app.post('/login', async (req, res) => {
     }
 });
 
+app.get('/js/:filename', function(req, res) {
+  const filename = req.params.filename;
+  const filePath = path.join(__dirname, 'public', 'areas', 'js', filename);
+  
+  res.set('Content-Type', 'text/javascript'); // Set the correct MIME type
+
+  res.sendFile(filePath);
+});
+
+
 app.get('/get-username', (req, res) => {
   if (req.session.isLoggedIn) {
 
@@ -111,27 +111,6 @@ app.get('/get-username', (req, res) => {
     // res.redirect('/index.html'); // Redirect to index if logged in
   }
 });
-
-
-
-// app.get('/areas/', (req, res) => {
-//   if (req.session.isLoggedIn) {
-//     // Render the page with content
-//     res.render('areas', { username: req.session.username });
-//   } else {
-//     // Redirect or render a login page
-//     res.redirect('/index.html');
-//   }
-// });
-
-// app.get('/areas', (req, res, next) => {
-//   if (req.session.isLoggedIn) {
-//     next(); // Proceed to the next middleware/route handler if not logged in
-//     res.json({ username });
-//   } else {
-//     res.redirect('/index.html'); // Redirect to index if logged in
-//   }
-// });
 
 
 // POST logout
@@ -189,7 +168,18 @@ confirmationRouter.get('/confirm-email/:token', async (req, res) => {
     }
 });
 
+// areasRouter.use('/areas/:filename', async (req, res) => {
+//   const filename = req.params.filename;
+//       if (req.session.isLoggedIn) {
+//          res.sendFile(path.join(__dirname, 'public', 'areas', filename));
+//       } else {
+//          res.redirect('/index.html');
+//       }
+// });
 
+
+app.use('/confirmation', confirmationRouter);
+// app.use('/areas/*', areasRouter);
 
 const PORT = process.env.PORT || 3000;
 
