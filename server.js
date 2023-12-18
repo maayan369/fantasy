@@ -11,37 +11,20 @@ const bodyParser = require('body-parser');
 const bcrypt = require('bcrypt');
 
 const session = require('express-session');
-const confirmationRouter = express.Router();
-const areasRouter = express.Router();
+const MongoDBStore = require('connect-mongodb-session')(session);
+const confirmationRouter = require('./routes/confirmationRoute.js')
 
-const { User, getUserByUsername, getUserByTokenAndConfirm, verifyPassword } = require('./utils/Users.js')
+const { User, getUserByUsername, verifyPassword, getUserById, getUserByTabIdInUse } = require('./utils/Users.js')
+// const { generateTabId } = require('./utils/currentUser.js')
 
 const { sendConfirmEmail } = require('./mailer/confirmEmail.js');
 
+const cookieParser = require('cookie-parser');
+const { Console } = require('console');
+app.use(cookieParser());
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-
-app.use(session({
-  secret: 'j2who55ate430@my$!cookiesrandomran4912398islogin?#$',
-  resave: false,
-  saveUninitialized: false,
-}));
-
-
-app.use('/areas/:filename', function(req, res, next) {
-  const filename = req.params.filename; 
-
-  if (req.session.isLoggedIn) {
-    res.sendFile(path.join(__dirname, 'public', 'areas', filename));
-  } else {
-    res.redirect('/index.html');
-  }
-});
-
-
-app.use(express.static(path.join(__dirname, 'public')));
-
 
 //Connect to mongodb
 mongoose.connect("mongodb://localhost:27017/FantasyDB")
@@ -52,73 +35,267 @@ mongoose.connect("mongodb://localhost:27017/FantasyDB")
     console.error('error:', err);
 });
 
+const TabDataSchema = new mongoose.Schema({
+  tabId: String,
+  isLoggedIn: Boolean,
+  currentUsername: String,  // Corrected field name
+  currentUserId: String,
+  loginTime: Date,
+  previousTabId: String,
+});
 
-//POST login
-app.post('/login', async (req, res) => {
-    const { loginUsername, loginPassword } = req.body;
-  
-    try {
-      const user = await getUserByUsername(loginUsername);
-      
-      //check if there is a user with this user name
-      if (!user) {
-        return res.status(401).json({ message: 'Invalid username or password' });
-      }
-  
-      // Check if the user is confirmed
-      if (!user.confirmed) {
-        return res.status(401).json({ message: 'User not confirmed email' });
-      }
-  
-      // Verify the password
-      const passwordMatch = await verifyPassword(loginPassword, user.password);
-      if (passwordMatch) {
 
-        //login:
-        req.session.isLoggedIn = true;
-        req.session.username = loginUsername;
-        
-        return res.status(200).json({ message: 'Login successful' });
+const TabData = mongoose.model('TabData', TabDataSchema);
 
+
+var Socket_Connected_Users_List = {};
+var Players_List = {};
+const activeSessions = {}; 
+
+
+var Player = function(id, username, tabId) {
+  var self = {
+    x: 250,
+    y: 250,
+    tabId: tabId,
+    username: username,
+    targetX: 250,
+    targetY: 250,
+    speed: 3,
+  };
+  
+  self.updatePosition = function() {
+    if (self.x !== self.targetX || self.y !== self.targetY) {
+      var dx = self.targetX - self.x;
+      var dy = self.targetY - self.y;
+      var distance = Math.sqrt(dx * dx + dy * dy);
+
+      if (distance > self.speed) {
+        var angle = Math.atan2(dy, dx);
+        self.x += Math.cos(angle) * self.speed;
+        self.y += Math.sin(angle) * self.speed;
       } else {
-        // Passwords do not match - handle invalid credentials
-        return res.status(401).json({ message: 'Invalid username or password' });
+        self.x = self.targetX;
+        self.y = self.targetY;
       }
-    } catch (error) {
-      console.error('Login error:', error);
-      res.status(500).send('Internal server error');
     }
-});
+  };
+  return self;
+};
 
-app.get('/js/:filename', function(req, res) {
-  const filename = req.params.filename;
-  const filePath = path.join(__dirname, 'public', 'areas', 'js', filename);
+setInterval(function() {
+  var pack = [];
+  for (var tabId in Players_List) {
+    var player = Players_List[tabId];
+    player.updatePosition();
+    pack.push({
+      x: player.x,
+      y: player.y,
+      username: player.username,
+    });
+  }
+  for (var tabId in Socket_Connected_Users_List) {
+    var socket = Socket_Connected_Users_List[tabId];
+    socket.emit('newPositions', pack);
+  }
+}, 100 / 25);
+
+
+
+io.on('connection', async (socket) => {
+  console.log('Socket login successful');
+  const tabId = socket.handshake.query.tabId;
+  socket.tabId = tabId ? tabId : null;
+  const currentTabdata = await TabData.findOne({ tabId: socket.tabId });
+  const username = currentTabdata ? currentTabdata.currentUsername : null;
+  socket.username = username;
+  const previousTabId = currentTabdata ? currentTabdata.previousTabId : null;
+
+
+  if (!socket.username) {
+    console.log('No username provided. Redirecting to login.');
+    socket.emit('redirectLogin'); 
+    return;
+  }
+
+  if (previousTabId) {
+    io.to(activeSessions[previousTabId]).emit('forceDisconnect');
+    delete Socket_Connected_Users_List[previousTabId];
+    delete Players_List[previousTabId]; // Delete the player for the previous tab
+    await TabData.deleteOne({ tabId: previousTabId });
+  };
+
+  activeSessions[tabId] = socket.id;
+
+  Socket_Connected_Users_List[tabId] = socket;
+  var player = Player(tabId, socket.username, socket.tabId);
+  Players_List[tabId] = player;
   
-  res.set('Content-Type', 'text/javascript'); // Set the correct MIME type
+  socket.on('disconnect', async () => {
+    delete Socket_Connected_Users_List[tabId];
+    delete Players_List[tabId];
+    delete activeSessions[tabId]; 
+  });
 
-  res.sendFile(filePath);
+  socket.on('clickPosition', (data) => {
+    player.targetX = data.x;
+    player.targetY = data.y;
+  });
 });
 
 
-app.get('/get-username', (req, res) => {
-  if (req.session.isLoggedIn) {
 
-    const username = req.session.username;
-    res.json({ username });
 
-  } else {
-    res.status(401).json({ message: 'Not logged in' });
-    // res.redirect('/index.html'); // Redirect to index if logged in
+
+// Serve JavaScript files directly from areas/js directory
+app.use('/js', express.static(path.join(__dirname, 'public', 'areas', 'js')));
+
+// Serve media files directly from areas/media directory
+app.use('/areas/media', express.static(path.join(__dirname, 'public', 'areas', 'media')));
+
+
+const checkLoginStatus = async (req, res, next) => {
+  const requestedUrl = req.originalUrl;
+   // Exclude /media route from triggering login check
+   if (requestedUrl.startsWith('/areas/media')) {
+    return next(); // Skip login check for /media route
+  }
+  // Exclude /media route from triggering login check
+  if (requestedUrl.startsWith('/areas/js')) {
+    return next(); // Skip login check for /media route
+  }
+
+  const tabid = req.params.tabid;
+  console.log(tabid);
+  const currentTabdata = await TabData.findOne({ tabId: tabid });
+
+  // Rest of your logic to check login status...
+
+  if (!currentTabdata) {
+      console.log('tab data does not exist');
+      return res.redirect('/login.html');
+  }   
+
+  // if (currentTabdata.isLoggedIn) {
+  //   console.log('already logged in');
+  //   return res.redirect('/login.html');
+  // }
+
+  const currentUserUsername = currentTabdata.currentUsername;
+  const currentUser = await getUserByUsername(currentUserUsername);
+
+  if (currentUser.tabIdInUse !== tabid) {
+    console.log('user logined from somewhere else');
+    return res.redirect('/login.html');
+  }
+
+  currentTabdata.isLoggedIn = true;
+  await currentTabdata.save();
+
+  // Continue with next middleware if needed
+  next();
+};
+
+
+// Route for serving files after login status check
+app.get('/areas/:tabid/:filename', checkLoginStatus, (req, res) => {
+  const filename = req.params.filename;
+  const filePath = path.join(__dirname, 'public', 'areas', filename);
+  res.sendFile(filePath);
+
+});
+
+// // Serve static files separately except media and JavaScript
+app.use(express.static(path.join(__dirname, 'public')));
+
+
+
+
+//POST login LOGIN LOGIN LOGIN
+app.post('/login', async (req, res) => {
+  const { loginUsername, loginPassword, currentTabId, timeOfLogin } = req.body;
+  const user = await getUserByUsername(loginUsername);
+
+  try {
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid username or password' });
+    }
+
+    if (!user.confirmed) {
+      return res.status(401).json({ message: 'User not confirmed email' });
+    }
+    
+    const passwordMatch = await verifyPassword(loginPassword, user.password);
+    if (!passwordMatch) {
+      return res.status(401).json({ message: 'Invalid username or password' });
+    };
+
+
+    // if(existingSession) {
+    //   await TabData.deleteOne({ _id: existingSession._id  });
+    // }
+
+    const newTab = new TabData({
+      tabId: currentTabId,
+      isLoggedIn: false,
+      currentUsername: loginUsername,
+      currentUserId: user._id,
+      loginTime: timeOfLogin,
+      previousTabId: user.tabIdInUse,
+    });
+    await newTab.save();
+
+    
+    if(user.tabIdInUse !== currentTabId) {
+      console.log('logout from somewhere alse');
+      user.tabIdInUse = currentTabId;
+      await user.save();
+    }
+
+    res.status(200).json({ message: 'Login successful' });
+    // res.redirect('areas/thePalace.html');
+
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).send('Internal server error');
   }
 });
 
 
-// POST logout
-app.post('/logout', (req, res) => {
-  req.session.isLoggedIn = false;
-  req.session.username = null;
-  res.send('Logged out successfully!');
+
+// POST logout (change the session again)
+app.post('/logout', async (req, res) => {
+  const { currentTabId } = req.body;
+
+  try {
+    // Find the current user and tab data associated with the currentTabId
+    const currentTabdata = await TabData.findOne({ tabId: currentTabId });
+    const currentUser = await getUserByUsername(currentTabdata.currentUsername);
+
+
+    if (currentUser && currentTabdata) {
+      // Update the isLoggedIn field to false for the associated tab data
+      currentTabdata.isLoggedIn = false;
+      await currentTabdata.save();
+
+      // Set a timeout to delete tab data after 120 seconds if not changed back to true
+      setTimeout(async () => {
+        const updatedTabData = await TabData.findOne({ tabId: currentTabId });
+
+        if (updatedTabData && !updatedTabData.isLoggedIn) {
+          console.log(`Tab data for ${currentTabId} will be deleted.`);
+          await TabData.deleteOne({ tabId: currentTabId });
+        }
+      }, 120000); // 120 seconds
+    }
+
+    res.status(200).send('Logout successful');
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).send('Internal server error');
+  }
 });
+
 
 //POST signup
 app.post('/signup', async (req, res) => {
@@ -127,7 +304,7 @@ app.post('/signup', async (req, res) => {
     try{
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
-        const newUser = new User({ username, email, password: hashedPassword, id, confirmed, confirmationToken});
+        const newUser = new User({ username, email, password: hashedPassword, id, confirmed, confirmationToken, tabId:''});
         const savedUser = await newUser.save();
         res.status(201).json(savedUser);
 
@@ -141,45 +318,11 @@ app.post('/signup', async (req, res) => {
 
 });
 
-
-//routers:
-// areasRouter.use((req, res, next) => {
-//   if (req.session.isLoggedIn === true) {
-//     next(); // Proceed to the next middleware/route handler if not logged in
-//   } else {
-//     res.redirect('/index.html'); // Redirect to index if logged in
-//   }
-// });
-
-confirmationRouter.get('/confirm-email/:token', async (req, res) => {
-    const token = req.params.token;
-    try {
-        const user = await getUserByTokenAndConfirm(token);
-        if (user) {
-            // Redirect the user to a confirmation success page
-            res.redirect('/login.html');
-        } else {
-            // Handle case where user is not found or confirmation fails
-            res.status(404).send('Confirmation failed. User not found.');
-        }
-    } catch (error) {
-        console.error('Confirmation error:', error);
-        res.status(500).send('Internal server error');
-    }
-});
-
-// areasRouter.use('/areas/:filename', async (req, res) => {
-//   const filename = req.params.filename;
-//       if (req.session.isLoggedIn) {
-//          res.sendFile(path.join(__dirname, 'public', 'areas', filename));
-//       } else {
-//          res.redirect('/index.html');
-//       }
-// });
-
-
+//Confirm email Route
 app.use('/confirmation', confirmationRouter);
-// app.use('/areas/*', areasRouter);
+
+
+
 
 const PORT = process.env.PORT || 3000;
 

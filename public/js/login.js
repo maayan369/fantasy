@@ -1,3 +1,20 @@
+// const socket = io(); // Connects to the Socket.IO server
+
+function generateTabId() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
+// Function to set the current tab ID
+function setCurrentTabId(tabId) {
+  sessionStorage.setItem('currentTabId', tabId);
+}
+
+
+
 function setFormMessage(formElement, type, message) {
     const messageElement = formElement.querySelector(".form__message")
 
@@ -8,60 +25,65 @@ function setFormMessage(formElement, type, message) {
 
 
 document.addEventListener("DOMContentLoaded", () => {
-    //link login and sign up forms
-    const loginForm = document.querySelector("#login");
-    const createAccountForm = document.querySelector("#createAccount");  
-    
-    document.querySelector("#linkCreateAccount").addEventListener("click", e => {
-        e.preventDefault();
-        loginForm.classList.add("form--hidden")
-        createAccountForm.classList.remove("form--hidden")
-    });
+  //link login and sign up forms
+  const loginForm = document.querySelector("#login");
+  const createAccountForm = document.querySelector("#createAccount"); 
+   
+  
+  document.querySelector("#linkCreateAccount").addEventListener("click", e => {
+      e.preventDefault();
+      loginForm.classList.add("form--hidden")
+      createAccountForm.classList.remove("form--hidden")
+  });
 
-    document.querySelector("#linkLogin").addEventListener("click", e => {
-        e.preventDefault();
-        loginForm.classList.remove("form--hidden")
-        createAccountForm.classList.add("form--hidden")
-    });
+  document.querySelector("#linkLogin").addEventListener("click", e => {
+      e.preventDefault();
+      loginForm.classList.remove("form--hidden")
+      createAccountForm.classList.add("form--hidden")
+  });
 
-    // //Email confirmed note
-    // if (true) {
-    //   setFormMessage(loginForm, "confirmed", "המייל אומת בהצלחה!");
-    // };
+  // //Email confirmed note
+  // if (true) {
+  //   setFormMessage(loginForm, "confirmed", "המייל אומת בהצלחה!");
+  // };
 
-    //submit login
-    loginForm.addEventListener("submit",  async function(event) {
-        event.preventDefault();
+  //submit login
+  loginForm.addEventListener("submit",  async (event) => {
+    event.preventDefault();
 
-        const loginUsername = document.getElementById('loginUsername').value;
-        const loginPassword = document.getElementById('loginPassword').value;
+    const loginUsername = document.getElementById('loginUsername').value;
+    const loginPassword = document.getElementById('loginPassword').value;
+    const timeOfLogin = Date.now(); 
+    const currentTabId = generateTabId();
+    setCurrentTabId(currentTabId);
+
+    const afterLoginLink = `http://localhost:3000/areas/${currentTabId}/thePalace.html`;
+
+
+    try {
+      const response = await fetch('/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ loginUsername, loginPassword, currentTabId, timeOfLogin })
+      });
+
+      if (response.ok) {
+
+        console.log("Login successful!", currentTabId); // Log if login
         
-        try {
-            const response = await fetch('/login', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({ loginUsername, loginPassword })
-            });
-    
-            if (response.ok) {
-              // Redirect to a dashboard or perform other actions for successful login
-              console.log('Login successful');
-              window.location.href = "http://localhost:3000/areas/thePalace.html";
-              //יהיה צריך להוסיף שזה יהיה לפי משתמש ואם הוא לא מחובר אז זה לא יעבוד..
-            } else {
-              const errorMessage = await response.json();
-              console.error('Login failed:', errorMessage.message);
-              setFormMessage(loginForm, "error", "שם משתמש או סיסמא אינם נכונים");
-            }
-          } catch (error) {
-            console.error('Error during login:', error);
-          }
-    });
+        window.location.href = afterLoginLink;
+
+      } else {
+        const errorMessage = await response.json();
+        console.error('Login failed:', errorMessage.message);
+        setFormMessage(loginForm, "error", "שם משתמש או סיסמא אינם נכונים");
+      }
+
+    } catch (error) {
+      console.error('Error during login:', error);
+    }
+  });
+
 });
-
-
-
-
-

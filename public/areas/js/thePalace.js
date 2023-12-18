@@ -1,12 +1,64 @@
-const socket = io();
-// const myusername = "lala";
-// let userCharacterId;
+function getCurrentTabId() {
+  return sessionStorage.getItem('currentTabId');
+}
+
+const canvas = document.getElementById('usersContainer');
+const usersContainer = canvas.getContext('2d');
+
+const currentTabId = getCurrentTabId();
+const socket = io({ query: { tabId: currentTabId } });
+usersContainer.font = '30px Arial';
+
+socket.on('newPositions', (data) => {
+  usersContainer.clearRect(0, 0, canvas.width, canvas.height);
+  for (let i = 0; i < data.length; i++) {
+    usersContainer.fillText(data[i].username, data[i].x, data[i].y);
+  }
+});
+
+
+canvas.addEventListener('click', (event) => {
+  const rect = canvas.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+  socket.emit('clickPosition', { x, y });
+});
+
+socket.emit('initialize', currentTabId);
+
+socket.on('forceDisconnect', () => {
+  const overlay = document.getElementById('overlay');
+  const customAlert = document.getElementById('customAlert');
+  const okButton = document.getElementById('okButton');
+
+  overlay.style.display = 'block';
+  customAlert.style.display = 'block';
+
+  okButton.onclick = () => {
+    overlay.style.display = 'none';
+    customAlert.style.display = 'none';
+    window.location.href = '/login.html'; // Redirect to login page or perform other actions
+  };
+});
+
+socket.on('redirectLogin', () => {
+  // Handle redirect to login page
+  console.log('Redirecting to login page...');
+  // Perform redirection to the login page
+  window.location.href = '/login.html';
+});
+
 
 document.getElementById('logoutBtn').addEventListener('click', async () => {
+  const currentTabId = getCurrentTabId();
   try {
     const response = await fetch('/logout', {
       method: 'POST',
       credentials: 'same-origin', // Ensures cookies are sent with the request
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ currentTabId })
     });
     if (response.ok) {
       // Handle successful logout
@@ -21,72 +73,3 @@ document.getElementById('logoutBtn').addEventListener('click', async () => {
     console.error('Error during logout:', error);
   }
 });
-
-// Function to fetch the username from the server
-async function fetchUsername() {
-  try {
-    const response = await fetch('/get-username', {
-      method: 'GET',
-      credentials: 'same-origin' // Ensure cookies are sent with the request
-    });
-
-    if (response.ok) {
-      const { username } = await response.json();
-      document.querySelector('.usernameText').innerText = username;
-    } else {
-      // Handle errors or redirect to login page if needed
-      console.error('Failed to fetch username');
-      // window.location.href = '/index.html'; // Redirect to index page
-
-      // Redirect to login page or display an error message
-    }
-  } catch (error) {
-    console.error('Error fetching username:', error);
-  }
-}
-
-    // Call the fetchUsername function after the page loads
-    window.addEventListener('load', fetchUsername);
-
-
-
-document.addEventListener('DOMContentLoaded', () => {
-    const usersContainer = document.getElementById('usersContainer');
-    const userCharacter = document.getElementById('exmpUserCharacter');
-  
-    // Set initial position off-screen
-    // userCharacter.style.left = '-100px';
-    // userCharacter.style.top = '-100px';
-    // Function to set random initial position
-    const setInitialPosition = () => {
-        const rect = usersContainer.getBoundingClientRect();
-        // const padding = 100; // Adjust padding as needed
-        const maxX = rect.width - userCharacter.clientWidth - 300;
-        const maxY = rect.height - userCharacter.clientHeight - 100;
-
-        const posX = Math.floor(Math.random() * maxX);
-        const posY = Math.floor(Math.random() * maxY);
-
-        userCharacter.style.left = `${posX}px`;
-        userCharacter.style.top = `${posY}px`;
-    };
-
-    // Set initial position on page load
-    setInitialPosition();
-    
-    
-  
-    usersContainer.addEventListener('click', (event) => {
-      const rect = usersContainer.getBoundingClientRect();
-      const posX = event.clientX - rect.left - userCharacter.clientWidth / 2;
-      const posY = event.clientY - rect.top - userCharacter.clientHeight / 2;
-  
-      // Apply new position with a small delay for animation
-      setTimeout(() => {
-        userCharacter.style.left = `${posX}px`;
-        userCharacter.style.top = `${posY}px`;
-      }, 10);
-    });
-  });
-
-  

@@ -12,6 +12,7 @@ const userSchema = new mongoose.Schema({
         default: false,
     },
     confirmationToken: String,
+    tabIdInUse: String, // This will store the user's tab ID
 });
 
 const User = new mongoose.model('User', userSchema);
@@ -19,6 +20,26 @@ const User = new mongoose.model('User', userSchema);
 async function getUserByUsername(username) {
     try {
       const user = await User.findOne({ username });
+      return user;
+    } catch (error) {
+      console.error('Error finding user:', error);
+      throw error;
+    }
+};
+
+async function getUserById(userId) {
+    try {
+      const user = await User.findOne({ userId });
+      return user;
+    } catch (error) {
+      console.error('Error finding user:', error);
+      throw error;
+    }
+};
+
+async function getUserByTabIdInUse(tabIdInUse) {
+    try {
+      const user = await User.findOne({ tabIdInUse });
       return user;
     } catch (error) {
       console.error('Error finding user:', error);
@@ -57,6 +78,8 @@ module.exports = {
     User,
     getUserByUsername,
     getUserByTokenAndConfirm,
-    verifyPassword
+    verifyPassword,
+    getUserById,
+    getUserByTabIdInUse
 };
 

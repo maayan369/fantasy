@@ -5,87 +5,96 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fantasy Land</title>
     <style>
-        /* Styles for circles */
-        body {
-            background-color: black;
-            margin: 0;
-            padding: 0;
-            background-image: url("../media/palaceBackground.png");
-            background-size: contain;
-            background-repeat: no-repeat;
-            background-position: center;
-            height: 100vh;
-            max-width: 90%;
-            font-size: 18px;
-        }
-                
-        #usersContainer {
-          background-image: url("../media/palaceGround.png");
-          position: absolute;
-          background-repeat: no-repeat;
-            background-position: center;
-          height: 100vh;
-            max-width: 90%;
-          /* width: 100%;
-          height: 100%; */
-          margin: 0;
-          padding: 0;
-          /* width: 100% - 40px;
-          height: 380px; */
-          border: 10px solid gray;
-          /* overflow: hidden; */
-          /* margin: 20px; */
-          cursor: pointer;
-          z-index: 0;
+       
+      body {
+        margin: 0;
+        padding: 0;
+      }
 
-        }
+      #container {
+        background-color: black;
+        margin: 0;
+        padding: 0;
+        background-image: url("../media/palaceBackground.png");
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        height: 100vh;
+        max-width: 100vw;
+        font-size: 18px;
+        align-items: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      #ground {
+        position: relative;
+        /* margin-top: 20px; */
+        max-height: 100%;
+        max-width: 100%;
+        
+      }
+              
+      #usersContainer {
+        /* background-color: white; */
+        position: absolute;
+        cursor: pointer;
+        z-index: 1;
+        background-color: rgba(255, 255, 255, 0.3);
+
+      } 
     
-        .userCharacter {
-          position: absolute;
-          width: 80px;
-          height: 120px;
-          align-items: center;
-          display: flex;
-          flex-direction: column;
-          transition: top 0.3s ease-in-out, left 0.3s ease-in-out;
-          /* background-color: rebeccapurple; */
-        }
+      /* .userCharacter {
+        position: absolute;
+        width: 80px;
+        height: 120px;
+        align-items: center;
+        display: flex;
+        flex-direction: column;
+        transition: top 0.3s ease-in-out, left 0.3s ease-in-out;
+      } */
 
-        .usernameText {
-          font-size: 15px;
-          text-align: center;
-          width: 100%;
-          position: relative;
-          top: 10px;
-          width: 150%;
-          /* background-color: brown; */
+      /* .usernameText {
+        font-size: 15px;
+        text-align: center;
+        width: 100%;
+        position: relative;
+        top: 10px;
+        width: 150%;
+      } */
 
+      /* #characterImage {
+        width: 100%;
+      } */
+      
 
-        }
-
-        #characterImage {
-          width: 100%;
-          
-        }
     </style>
 </head>
-<body>
-    <h1>הארמון</h1>
-    <input type="color" id="colorPicker" value="#000000">
-    <button type="button" id="logoutBtn">התנתק</button>
-    <a href="http://localhost:3000/areas/theSea.html">
-      <button type="button">לים</button>
-  </a>
-    <div id="usersContainer">
-        <div class="userCharacter" id="exmpUserCharacter">
-            <image id="characterImage" src="../media/banana.png" alt="Character"></image>
-            <div class="usernameText"></div>
-        </div>
-    </div>
 
-    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/qs/6.11.2/qs.min.js" integrity="sha512-vCegEXqPUYpZsTGz2lk0jaQ1psxtFeniVJACAXhMVxuoYa/N4nZkjoVFOxLwP7uGeQOoemiz7DQrIpRTj4IBPw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <script src="/socket.io/socket.io.js"></script> -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.3.2/socket.io.js"></script>
-    <script src="/js/thePalace.js"></script>    
+<body>
+    <!-- <h1>הארמון</h1>
+    <input type="color" id="colorPicker" value="#000000">
+     -->
+    <!-- <a href="http://localhost:3000/areas/theSea.html">
+      <button type="button">לים</button>
+  </a> -->
+  <div id="overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 999;"></div>
+
+  <div id="customAlert" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: white; padding: 20px; border: 1px solid black; z-index: 1000;">
+    <p>You have been disconnected due to another login.</p>
+    <button id="okButton">OK</button>
+  </div>
+  <button type="button" id="logoutBtn">התנתק</button>
+  <div id="container">
+    <img id="ground" src="../media/palaceGround.png" alt="Ground Shape">
+    <canvas id="usersContainer" height="300" width="500"></canvas>
+  </div>
+
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.3.2/socket.io.js"></script>
+  <script src="/js/thePalace.js"></script>   
+  <script src="/js/socketClient.js"></script>
+ 
 </body>
 </html>

@@ -1,2 +1,23 @@
-// לא הצלחתי לקחת את הפונקציות האלה מהשרת לכאן אולי כדאי ליצור קודם
-// עמוד נפרד ביוטילס של יוזרז כדישאני אוכל לעשות גם את זה
+const express = require('express');
+const confirmationRouter = express.Router();
+const { getUserByTokenAndConfirm } = require('../utils/Users.js')
+
+
+confirmationRouter.get('/confirm-email/:token', async (req, res) => {
+    const token = req.params.token;
+    try {
+        const user = await getUserByTokenAndConfirm(token);
+        if (user) {
+            // Redirect the user to a confirmation success page
+            res.redirect('/login.html');
+        } else {
+            // Handle case where user is not found or confirmation fails
+            res.status(404).send('Confirmation failed. User not found.');
+        }
+    } catch (error) {
+        console.error('Confirmation error:', error);
+        res.status(500).send('Internal server error');
+    }
+});
+
+module.exports = confirmationRouter;
