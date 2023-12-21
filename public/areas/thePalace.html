@@ -9,42 +9,53 @@
       body {
         margin: 0;
         padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        background-color: black;
       }
 
+      #logoutBtn {
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 10;
+      }
+
+
       #container {
-        background-color: black;
-        margin: 0;
-        padding: 0;
-        background-image: url("../media/palaceBackground.png");
-        background-size: contain;
-        background-repeat: no-repeat;
-        background-position: center;
+        position: relative;
+        width: 100vw;
         height: 100vh;
-        max-width: 100vw;
-        font-size: 18px;
-        align-items: center;
         display: flex;
         align-items: center;
         justify-content: center;
       }
 
-      #ground {
-        position: relative;
-        /* margin-top: 20px; */
-        max-height: 100%;
+      #backgroundImage,
+      #groundImage {
         max-width: 100%;
-        
-      }
-              
-      #usersContainer {
-        /* background-color: white; */
+        max-height: 100%;
         position: absolute;
-        cursor: pointer;
-        z-index: 1;
-        background-color: rgba(255, 255, 255, 0.3);
+        object-fit: cover;
+      }
 
-      } 
-    
+      #backgroundImage {
+        z-index: 1;
+      }
+
+      #groundImage {
+        z-index: 0;
+      }
+
+      #usersContainer {
+        z-index: 3;
+      }
+
+
+      
+      
       /* .userCharacter {
         position: absolute;
         width: 80px;
@@ -67,7 +78,8 @@
       /* #characterImage {
         width: 100%;
       } */
-      
+
+            
 
     </style>
 </head>
@@ -85,11 +97,19 @@
     <p>You have been disconnected due to another login.</p>
     <button id="okButton">OK</button>
   </div>
+
   <button type="button" id="logoutBtn">התנתק</button>
+
   <div id="container">
-    <img id="ground" src="../media/palaceGround.png" alt="Ground Shape">
-    <canvas id="usersContainer" height="300" width="500"></canvas>
+    <img id="backgroundImage" src="../media/palaceBackground.png" alt="background Image">
+    <img id="groundImage" src="../media/palaceGround.png" alt="Ground Image">
+    <canvas id="usersContainer"></canvas>
   </div>
+
+
+
+
+
 
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.3.2/socket.io.js"></script>

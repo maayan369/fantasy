@@ -55,12 +55,12 @@ const activeSessions = {};
 
 var Player = function(id, username, tabId) {
   var self = {
-    x: 250,
-    y: 250,
+    x: 960,
+    y: 960,
     tabId: tabId,
     username: username,
-    targetX: 250,
-    targetY: 250,
+    targetX: 960,
+    targetY: 960,
     speed: 3,
   };
   
@@ -135,7 +135,29 @@ io.on('connection', async (socket) => {
     delete Socket_Connected_Users_List[tabId];
     delete Players_List[tabId];
     delete activeSessions[tabId]; 
+
+    try {
+      const currentTabdata = await TabData.findOne({ tabId: socket.tabId });
+      const currentUser = await getUserByUsername(currentTabdata.currentUsername);
+
+      if (currentUser && currentTabdata) {
+        currentTabdata.isLoggedIn = false;
+        await currentTabdata.save();
+        console.log(`Tab data for ${socket.tabId} will be deleted.`);
+        // Set a timeout to delete tab data after 120 seconds if not changed back to true
+        setTimeout(async () => {
+          const updatedTabData = await TabData.findOne({ tabId: socket.tabId });
+
+          if (updatedTabData && !updatedTabData.isLoggedIn) {
+            await TabData.deleteOne({ tabId: socket.tabId });
+          }
+        }, 120000); // 120 seconds
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   });
+  
 
   socket.on('clickPosition', (data) => {
     player.targetX = data.x;
@@ -189,20 +211,24 @@ const checkLoginStatus = async (req, res, next) => {
     return res.redirect('/login.html');
   }
 
-  currentTabdata.isLoggedIn = true;
-  await currentTabdata.save();
-
   // Continue with next middleware if needed
   next();
 };
 
 
 // Route for serving files after login status check
-app.get('/areas/:tabid/:filename', checkLoginStatus, (req, res) => {
+app.get('/areas/:tabid/:filename', checkLoginStatus, async (req, res) => {
+  const tabid = req.params.tabid;
   const filename = req.params.filename;
+  
+  const currentTabdata = await TabData.findOne({ tabId: tabid });
+  if (currentTabdata) {
+    currentTabdata.isLoggedIn = true;
+    await currentTabdata.save();
+  }
+
   const filePath = path.join(__dirname, 'public', 'areas', filename);
   res.sendFile(filePath);
-
 });
 
 // // Serve static files separately except media and JavaScript
@@ -277,13 +303,15 @@ app.post('/logout', async (req, res) => {
       // Update the isLoggedIn field to false for the associated tab data
       currentTabdata.isLoggedIn = false;
       await currentTabdata.save();
+      console.log(`Tab data for ${currentTabId} will be deleted.`);
+
 
       // Set a timeout to delete tab data after 120 seconds if not changed back to true
       setTimeout(async () => {
         const updatedTabData = await TabData.findOne({ tabId: currentTabId });
 
+
         if (updatedTabData && !updatedTabData.isLoggedIn) {
-          console.log(`Tab data for ${currentTabId} will be deleted.`);
           await TabData.deleteOne({ tabId: currentTabId });
         }
       }, 120000); // 120 seconds

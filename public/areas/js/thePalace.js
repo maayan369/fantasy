@@ -2,27 +2,113 @@ function getCurrentTabId() {
   return sessionStorage.getItem('currentTabId');
 }
 
-const canvas = document.getElementById('usersContainer');
-const usersContainer = canvas.getContext('2d');
+const usersCanvas = document.getElementById('usersContainer');
+const usersCtx = usersCanvas.getContext('2d');
 
 const currentTabId = getCurrentTabId();
 const socket = io({ query: { tabId: currentTabId } });
-usersContainer.font = '30px Arial';
+
+const backgroundImage = document.getElementById('backgroundImage');
+const groundImage = document.getElementById('groundImage');
+
+const tempCanvas = document.createElement('canvas');
+const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
+
+let charactersData = {};
+
+// Original canvas dimensions
+const originalCanvasWidth = 1920;
+const originalCanvasHeight = 1080;
+
+// Resized canvas dimensions
+let currentCanvasWidth = backgroundImage.width;
+let currentCanvasHeight = backgroundImage.height;
+
+// Resized canvas dimensions
+let currentTempCanvasWidth = backgroundImage.width;
+let currentTempCanvasHeight = backgroundImage.height;
+
+function isPixelTransparent(x, y) {
+  const pixelData = tempCtx.getImageData(x, y, 1, 1).data;
+  const alpha = pixelData[3]; 
+  return alpha === 0; 
+}
+
 
 socket.on('newPositions', (data) => {
-  usersContainer.clearRect(0, 0, canvas.width, canvas.height);
-  for (let i = 0; i < data.length; i++) {
-    usersContainer.fillText(data[i].username, data[i].x, data[i].y);
+  charactersData =  data;
+  drawCharacters();
+});
+
+
+// Function to draw characters based on original canvas size
+function drawCharacters() {
+  usersCtx.clearRect(0, 0, usersCanvas.width, usersCanvas.height);
+
+  for (let i = 0; i < charactersData.length; i++) {
+    const user = charactersData[i];
+    const xRatio = user.x / originalCanvasWidth;
+    const yRatio = user.y / originalCanvasHeight;
+
+    const xPos = xRatio * currentCanvasWidth;
+    const yPos = yRatio * currentCanvasHeight;
+
+    const fontSize = currentCanvasWidth / 60;
+
+    usersCtx.font = `${fontSize}px Arial`; 
+    usersCtx.fillText(user.username, xPos, yPos);
+  }
+}
+
+
+
+
+function resizeCanvases() {
+  currentCanvasWidth = backgroundImage.width;
+  currentCanvasHeight = backgroundImage.height;
+
+  usersCanvas.width = backgroundImage.width;
+  usersCanvas.height = backgroundImage.height;
+
+  drawCharacters();
+
+  tempCanvas.width = backgroundImage.width;
+  tempCanvas.height = backgroundImage.height;
+
+  tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+  tempCtx.drawImage(groundImage, 0, 0, tempCanvas.width, tempCanvas.height);
+
+}
+
+
+
+window.addEventListener('load', resizeCanvases);
+window.addEventListener('resize', () => {
+  resizeCanvases();
+});
+
+// Function to handle click event on the canvas
+usersCanvas.addEventListener('click', (event) => {
+  const rect = usersCanvas.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+
+  // Calculate click position based on the original canvas size
+  const clickX = (x / currentCanvasWidth) * originalCanvasWidth;
+  const clickY = (y / currentCanvasHeight) * originalCanvasHeight;
+
+  const isTransparent = isPixelTransparent(x, y);
+
+  if (!isTransparent) {
+  socket.emit('clickPosition', { x: clickX, y: clickY });
   }
 });
 
 
-canvas.addEventListener('click', (event) => {
-  const rect = canvas.getBoundingClientRect();
-  const x = event.clientX - rect.left;
-  const y = event.clientY - rect.top;
-  socket.emit('clickPosition', { x, y });
-});
+
+
+//////
+
 
 socket.emit('initialize', currentTabId);
 
@@ -73,3 +159,4 @@ document.getElementById('logoutBtn').addEventListener('click', async () => {
     console.error('Error during logout:', error);
   }
 });
+
