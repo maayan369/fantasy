@@ -2,8 +2,7 @@ function getCurrentTabId() {
   return sessionStorage.getItem('currentTabId');
 }
 
-const usersCanvas = document.getElementById('usersContainer');
-const usersCtx = usersCanvas.getContext('2d');
+const usersContainer = document.getElementById('usersContainer');
 
 const currentTabId = getCurrentTabId();
 const socket = io({ query: { tabId: currentTabId } });
@@ -11,22 +10,26 @@ const socket = io({ query: { tabId: currentTabId } });
 const backgroundImage = document.getElementById('backgroundImage');
 const groundImage = document.getElementById('groundImage');
 
+const userCharacterImage = new Image();
+userCharacterImage.src = '../media/userCharacterCat.png';
+
 const tempCanvas = document.createElement('canvas');
 const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
 
 let charactersData = {};
 
 // Original canvas dimensions
-const originalCanvasWidth = 1920;
-const originalCanvasHeight = 1080;
+const originalBackgroundWidth = 1920;
+const originalBackgroundHeight = 1080;
 
 // Resized canvas dimensions
-let currentCanvasWidth = backgroundImage.width;
-let currentCanvasHeight = backgroundImage.height;
+let currentBackgroundWidth = backgroundImage.width;
+let currentBackgroundHeight = backgroundImage.height;
 
 // Resized canvas dimensions
 let currentTempCanvasWidth = backgroundImage.width;
 let currentTempCanvasHeight = backgroundImage.height;
+
 
 function isPixelTransparent(x, y) {
   const pixelData = tempCtx.getImageData(x, y, 1, 1).data;
@@ -43,34 +46,37 @@ socket.on('newPositions', (data) => {
 
 // Function to draw characters based on original canvas size
 function drawCharacters() {
-  usersCtx.clearRect(0, 0, usersCanvas.width, usersCanvas.height);
+  usersContainer.innerHTML = '';
+  const rect = groundImage.getBoundingClientRect();
 
   for (let i = 0; i < charactersData.length; i++) {
     const user = charactersData[i];
-    const xRatio = user.x / originalCanvasWidth;
-    const yRatio = user.y / originalCanvasHeight;
 
-    const xPos = xRatio * currentCanvasWidth;
-    const yPos = yRatio * currentCanvasHeight;
+    const xPos = (user.x / originalBackgroundWidth) * currentBackgroundWidth + rect.left;
+    const yPos = (user.y / originalBackgroundHeight) * currentBackgroundHeight + rect.top;
 
-    const fontSize = currentCanvasWidth / 60;
 
-    usersCtx.font = `${fontSize}px Arial`; 
-    usersCtx.fillText(user.username, xPos, yPos);
+    // Create a div for each user
+    const userDiv = document.createElement('div');
+    userDiv.classList.add('userCharacter');
+    userDiv.textContent = user.username;
+
+    // Set user position dynamically
+    userDiv.style.left = xPos + 'px';
+    userDiv.style.top = yPos + 'px';
+
+    // Append the user div to the container
+    usersContainer.appendChild(userDiv);
   }
 }
 
 
-
-
 function resizeCanvases() {
-  currentCanvasWidth = backgroundImage.width;
-  currentCanvasHeight = backgroundImage.height;
-
-  usersCanvas.width = backgroundImage.width;
-  usersCanvas.height = backgroundImage.height;
+  currentBackgroundWidth = backgroundImage.width;
+  currentBackgroundHeight = backgroundImage.height;
 
   drawCharacters();
+  console.log(currentBackgroundHeight, currentBackgroundWidth);
 
   tempCanvas.width = backgroundImage.width;
   tempCanvas.height = backgroundImage.height;
@@ -81,28 +87,29 @@ function resizeCanvases() {
 }
 
 
-
 window.addEventListener('load', resizeCanvases);
-window.addEventListener('resize', () => {
-  resizeCanvases();
-});
+window.addEventListener('resize', resizeCanvases);
 
-// Function to handle click event on the canvas
-usersCanvas.addEventListener('click', (event) => {
-  const rect = usersCanvas.getBoundingClientRect();
+// should fix it here
+backgroundImage.addEventListener('click', (event) => {
+  const rect = groundImage.getBoundingClientRect();
+
   const x = event.clientX - rect.left;
   const y = event.clientY - rect.top;
+  // console.log (rect.top, rectTop, rect.left, rectLeft)
 
-  // Calculate click position based on the original canvas size
-  const clickX = (x / currentCanvasWidth) * originalCanvasWidth;
-  const clickY = (y / currentCanvasHeight) * originalCanvasHeight;
+  // Calculate click position based on the current dimensions of the background image
+  const clickX = (x / currentBackgroundWidth) * originalBackgroundWidth;
+  const clickY = (y / currentBackgroundHeight) * originalBackgroundHeight;
 
   const isTransparent = isPixelTransparent(x, y);
 
+  console.log(isTransparent);
   if (!isTransparent) {
-  socket.emit('clickPosition', { x: clickX, y: clickY });
+    socket.emit('clickPosition', { x: clickX, y: clickY });
   }
 });
+
 
 
 
