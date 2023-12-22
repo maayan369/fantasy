@@ -55,12 +55,12 @@ const activeSessions = {};
 
 var Player = function(id, username, tabId) {
   var self = {
-    x: 960,
-    y: 960,
+    x: 700,
+    y: 700,
     tabId: tabId,
     username: username,
-    targetX: 960,
-    targetY: 960,
+    targetX: 700,
+    targetY: 700,
     speed: 3,
   };
   

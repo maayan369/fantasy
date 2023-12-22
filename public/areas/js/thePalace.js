@@ -10,9 +10,6 @@ const socket = io({ query: { tabId: currentTabId } });
 const backgroundImage = document.getElementById('backgroundImage');
 const groundImage = document.getElementById('groundImage');
 
-const userCharacterImage = new Image();
-userCharacterImage.src = '../media/userCharacterCat.png';
-
 const tempCanvas = document.createElement('canvas');
 const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
 
@@ -56,17 +53,36 @@ function drawCharacters() {
     const yPos = (user.y / originalBackgroundHeight) * currentBackgroundHeight + rect.top;
 
 
-    // Create a div for each user
     const userDiv = document.createElement('div');
-    userDiv.classList.add('userCharacter');
-    userDiv.textContent = user.username;
+    userDiv.classList.add('userCharacter');    
+    usersContainer.appendChild(userDiv);
+
+    const characterImage = new Image();
+    characterImage.src = '../media/userCharacterCat.png';
+    characterImage.classList.add('characterImage');
+    userDiv.appendChild(characterImage);
+
+    const usernameText = document.createElement('span');
+    usernameText.classList.add('usernameText');
+    usernameText.textContent = user.username;
+    userDiv.appendChild(usernameText);
+
+
+    userDiv.style.width = (currentBackgroundWidth / 12) +'px';
+    userDiv.style.height = (currentBackgroundWidth / 12) +'px';
+    
+    usernameText.style.fontSize = (currentBackgroundWidth / 60) +'px';
+
+    const userWidth = userDiv.offsetWidth;
+    const userHeight = userDiv.offsetHeight;
+
+    const userLeft = xPos - userWidth / 2;
+    const userTop = yPos - userHeight / 1.2;
 
     // Set user position dynamically
-    userDiv.style.left = xPos + 'px';
-    userDiv.style.top = yPos + 'px';
-
-    // Append the user div to the container
-    usersContainer.appendChild(userDiv);
+    userDiv.style.left = userLeft + 'px';
+    userDiv.style.top = userTop + 'px';
+    
   }
 }
 
@@ -76,7 +92,6 @@ function resizeCanvases() {
   currentBackgroundHeight = backgroundImage.height;
 
   drawCharacters();
-  console.log(currentBackgroundHeight, currentBackgroundWidth);
 
   tempCanvas.width = backgroundImage.width;
   tempCanvas.height = backgroundImage.height;
@@ -96,7 +111,6 @@ backgroundImage.addEventListener('click', (event) => {
 
   const x = event.clientX - rect.left;
   const y = event.clientY - rect.top;
-  // console.log (rect.top, rectTop, rect.left, rectLeft)
 
   // Calculate click position based on the current dimensions of the background image
   const clickX = (x / currentBackgroundWidth) * originalBackgroundWidth;
@@ -104,7 +118,6 @@ backgroundImage.addEventListener('click', (event) => {
 
   const isTransparent = isPixelTransparent(x, y);
 
-  console.log(isTransparent);
   if (!isTransparent) {
     socket.emit('clickPosition', { x: clickX, y: clickY });
   }
