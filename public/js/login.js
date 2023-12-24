@@ -14,6 +14,11 @@ function setCurrentTabId(tabId) {
 }
 
 
+// Function to set the current tab ID
+function setCurrentUsername(username) {
+  sessionStorage.setItem('currentUsername', username);
+}
+
 
 function setFormMessage(formElement, type, message) {
     const messageElement = formElement.querySelector(".form__message")
@@ -56,6 +61,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const timeOfLogin = Date.now(); 
     const currentTabId = generateTabId();
     setCurrentTabId(currentTabId);
+    setCurrentUsername(loginUsername);
+
 
     const afterLoginLink = `http://localhost:3000/areas/${currentTabId}/thePalace.html`;
 

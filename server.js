@@ -62,6 +62,7 @@ var Player = function(id, username, tabId) {
     targetX: 700,
     targetY: 700,
     speed: 3,
+    message: '',
   };
   
   self.updatePosition = function() {
@@ -92,6 +93,7 @@ setInterval(function() {
       x: player.x,
       y: player.y,
       username: player.username,
+      message: player.message,
     });
   }
   for (var tabId in Socket_Connected_Users_List) {
@@ -163,6 +165,19 @@ io.on('connection', async (socket) => {
     player.targetX = data.x;
     player.targetY = data.y;
   });
+
+
+  let messageUpdateTimeout;
+
+  socket.on('chatMessage', (message) => {
+    player.message = message;
+  
+    clearTimeout(messageUpdateTimeout);
+    messageUpdateTimeout = setTimeout(() => {
+      player.message = '';
+    }, 5000);
+  });
+
 });
 
 

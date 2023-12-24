@@ -2,9 +2,14 @@ function getCurrentTabId() {
   return sessionStorage.getItem('currentTabId');
 }
 
+function getCurrentUsername() {
+  return sessionStorage.getItem('currentUsername');
+}
+
 const usersContainer = document.getElementById('usersContainer');
 
 const currentTabId = getCurrentTabId();
+const currentUsername = getCurrentUsername();
 const socket = io({ query: { tabId: currentTabId } });
 
 const backgroundImage = document.getElementById('backgroundImage');
@@ -13,7 +18,12 @@ const groundImage = document.getElementById('groundImage');
 const tempCanvas = document.createElement('canvas');
 const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
 
-let charactersData = {};
+// Get the existing chat form and input field
+const sendButton = document.getElementById('send-button');
+const chatForm = document.getElementById('chat-form');
+const messageInput = document.getElementById('msgInput');
+let charactersData = [];
+
 
 // Original canvas dimensions
 const originalBackgroundWidth = 1920;
@@ -28,6 +38,20 @@ let currentTempCanvasWidth = backgroundImage.width;
 let currentTempCanvasHeight = backgroundImage.height;
 
 
+
+chatForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const message = messageInput.value.trim();
+
+  if (message !== '') {
+    socket.emit('chatMessage', message);
+
+    messageInput.value = '';
+  }
+});
+
+
+
 function isPixelTransparent(x, y) {
   const pixelData = tempCtx.getImageData(x, y, 1, 1).data;
   const alpha = pixelData[3]; 
@@ -36,9 +60,11 @@ function isPixelTransparent(x, y) {
 
 
 socket.on('newPositions', (data) => {
-  charactersData =  data;
+  charactersData = data;
   drawCharacters();
 });
+
+
 
 
 // Function to draw characters based on original canvas size
@@ -49,12 +75,13 @@ function drawCharacters() {
   for (let i = 0; i < charactersData.length; i++) {
     const user = charactersData[i];
 
+
     const xPos = (user.x / originalBackgroundWidth) * currentBackgroundWidth + rect.left;
     const yPos = (user.y / originalBackgroundHeight) * currentBackgroundHeight + rect.top;
 
-
     const userDiv = document.createElement('div');
     userDiv.classList.add('userCharacter');    
+    userDiv.id = user.username;    
     usersContainer.appendChild(userDiv);
 
     const characterImage = new Image();
@@ -66,7 +93,6 @@ function drawCharacters() {
     usernameText.classList.add('usernameText');
     usernameText.textContent = user.username;
     userDiv.appendChild(usernameText);
-
 
     userDiv.style.width = (currentBackgroundWidth / 12) +'px';
     userDiv.style.height = (currentBackgroundWidth / 12) +'px';
@@ -82,9 +108,17 @@ function drawCharacters() {
     // Set user position dynamically
     userDiv.style.left = userLeft + 'px';
     userDiv.style.top = userTop + 'px';
-    
+    // console.log(usersContainer.innerHTML);
+
+    if (user.message !== '') {
+      const messageDiv = document.createElement('div');
+      messageDiv.classList.add('messageText');
+      userDiv.appendChild(messageDiv);
+      messageDiv.textContent = user.message || '';
+    }
   }
 }
+
 
 
 function resizeCanvases() {
