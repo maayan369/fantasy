@@ -4,17 +4,40 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fantasy Land</title>
+    <link rel="stylesheet" href="/css/thePalace.css" />
+    <script src="/js/requireLogin.js"></script>
+
 </head>
 <body>
-    <h1>הים</h1>
+    <!-- <h1 style="color:white;">הים</h1> -->
     <button type="button" id="logoutBtn">התנתק</button>
     <a href="thePalace.html">
-        <button type="button">לארמון</button>
-    </a>
+        <button type="button" id="movePage">ללכת לארמון</button>
+      </a>
+
+    <div id="container">
+        <img id="backgroundImage" src="../media/sea.png" alt="background Image">
+        <img id="groundImage" src="../media/seaGround.png" alt="Ground Image">
+        <div id="usersContainer"></div>    
+    </div>
+
+    <div class="chat-form-container">
+        <form id="chat-form">
+          <input
+            id="msgInput"
+            type="text"
+            placeholder="הקלידו הודעה"
+            autocomplete="off"
+          />
+          <button id="send-button">Send</button>
+        </form>
+    </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.3.2/socket.io.js"></script>
+    <script src="/js/thePalace.js"></script>   
     <script src="/js/theSea.js"></script>
-    <script src="/js/socketClient.js"></script>
+    <script src="/js/logout.js"></script>
+
 
 </body>
 </html>

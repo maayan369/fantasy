@@ -2,29 +2,28 @@ const express = require('express');
 const path = require('path');
 const http = require('http');
 const socketio = require('socket.io');
-const app = express();
-const server = http.createServer(app);
-const io = socketio(server); 
-
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const bcrypt = require('bcrypt');
 
-const session = require('express-session');
-const MongoDBStore = require('connect-mongodb-session')(session);
+const app = express();
+const server = http.createServer(app);
+const io = socketio(server); 
+
+// const session = require('express-session');
+// const MongoDBStore = require('connect-mongodb-session')(session);
+
+const { User, getUserByUsername, verifyPassword } = require('./utils/Users.js')
+
 const confirmationRouter = require('./routes/confirmationRoute.js')
-
-const { User, getUserByUsername, verifyPassword, getUserById, getUserByTabIdInUse } = require('./utils/Users.js')
-// const { generateTabId } = require('./utils/currentUser.js')
-
 const { sendConfirmEmail } = require('./mailer/confirmEmail.js');
 
 const cookieParser = require('cookie-parser');
-const { Console } = require('console');
 app.use(cookieParser());
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+
 
 //Connect to mongodb
 mongoose.connect("mongodb://localhost:27017/FantasyDB")
@@ -35,26 +34,35 @@ mongoose.connect("mongodb://localhost:27017/FantasyDB")
     console.error('error:', err);
 });
 
+
 const TabDataSchema = new mongoose.Schema({
   tabId: String,
   isLoggedIn: Boolean,
-  currentUsername: String,  // Corrected field name
+  currentUsername: String,
   currentUserId: String,
   loginTime: Date,
   previousTabId: String,
 });
 
-
 const TabData = mongoose.model('TabData', TabDataSchema);
 
 
-var Socket_Connected_Users_List = {};
-var Players_List = {};
-const activeSessions = {}; 
+var Socket_Connected_Users_List = [];
+var Players_List = [];
+const activeSessions = [];
+const roomPlayers = [];
+ 
 
+function getRoomFromPath(url) {
+  const parts = url.split('/');
+  const fileName = parts[parts.length - 1];
+  const room = fileName.split('.')[0];
+  return room;
+}
 
-var Player = function(id, username, tabId) {
+var Player = function(room, id, username, tabId) {
   var self = {
+    room: room,
     x: 700,
     y: 700,
     tabId: tabId,
@@ -90,6 +98,7 @@ setInterval(function() {
     var player = Players_List[tabId];
     player.updatePosition();
     pack.push({
+      room: player.room,
       x: player.x,
       y: player.y,
       username: player.username,
@@ -103,10 +112,11 @@ setInterval(function() {
 }, 100 / 25);
 
 
-
 io.on('connection', async (socket) => {
-  console.log('Socket login successful');
+  // console.log('Socket login successful');
   const tabId = socket.handshake.query.tabId;
+  const roomName = getRoomFromPath(socket.handshake.headers.referer);
+  socket.room = roomName;
   socket.tabId = tabId ? tabId : null;
   const currentTabdata = await TabData.findOne({ tabId: socket.tabId });
   const username = currentTabdata ? currentTabdata.currentUsername : null;
@@ -114,49 +124,70 @@ io.on('connection', async (socket) => {
   const previousTabId = currentTabdata ? currentTabdata.previousTabId : null;
 
 
+  if (!currentTabdata) {
+    console.log('No tab data provided. Redirecting to login.');
+    socket.emit('redirectLogin'); 
+    return;
+  }
+
   if (!socket.username) {
     console.log('No username provided. Redirecting to login.');
     socket.emit('redirectLogin'); 
     return;
   }
 
+
+  if (currentTabdata) {
+    currentTabdata.isLoggedIn = true;
+    await currentTabdata.save();
+  }
+
+
+  socket.on('joinRoom', (currentRoom) => {
+    player.room = currentRoom;
+    socket.join(currentRoom);
+  });
+
+
   if (previousTabId) {
     io.to(activeSessions[previousTabId]).emit('forceDisconnect');
     delete Socket_Connected_Users_List[previousTabId];
-    delete Players_List[previousTabId]; // Delete the player for the previous tab
+    delete Players_List[previousTabId];
+    delete activeSessions[previousTabId];
     await TabData.deleteOne({ tabId: previousTabId });
   };
 
   activeSessions[tabId] = socket.id;
 
   Socket_Connected_Users_List[tabId] = socket;
-  var player = Player(tabId, socket.username, socket.tabId);
+  var player = Player(socket.room, tabId, socket.username, socket.tabId);
   Players_List[tabId] = player;
+
   
   socket.on('disconnect', async () => {
     delete Socket_Connected_Users_List[tabId];
     delete Players_List[tabId];
-    delete activeSessions[tabId]; 
+    delete activeSessions[tabId];
+    if (currentTabdata) {
+      try {
+        const currentUser = await getUserByUsername(currentTabdata.currentUsername);
 
-    try {
-      const currentTabdata = await TabData.findOne({ tabId: socket.tabId });
-      const currentUser = await getUserByUsername(currentTabdata.currentUsername);
+        if (currentUser && currentTabdata) {
+          currentTabdata.isLoggedIn = false;
+          await currentTabdata.save();
+          // console.log(`Tab data for ${socket.tabId} will be deleted.`);
+          // Set a timeout to delete tab data after 120 seconds if not changed back to true
+          setTimeout(async () => {
+            const updatedTabData = await TabData.findOne({ tabId: socket.tabId });
 
-      if (currentUser && currentTabdata) {
-        currentTabdata.isLoggedIn = false;
-        await currentTabdata.save();
-        console.log(`Tab data for ${socket.tabId} will be deleted.`);
-        // Set a timeout to delete tab data after 120 seconds if not changed back to true
-        setTimeout(async () => {
-          const updatedTabData = await TabData.findOne({ tabId: socket.tabId });
-
-          if (updatedTabData && !updatedTabData.isLoggedIn) {
-            await TabData.deleteOne({ tabId: socket.tabId });
-          }
-        }, 120000); // 120 seconds
+            if (updatedTabData && !updatedTabData.isLoggedIn) {
+              await TabData.deleteOne({ tabId: socket.tabId });
+            }
+          }, 60000);
+        }
+      } catch (error) {
+        console.error('Logout error:', error);
       }
-    } catch (error) {
-      console.error('Logout error:', error);
     }
   });
   
@@ -166,7 +197,6 @@ io.on('connection', async (socket) => {
     player.targetY = data.y;
   });
 
-
   let messageUpdateTimeout;
 
   socket.on('chatMessage', (message) => {
@@ -175,84 +205,21 @@ io.on('connection', async (socket) => {
     clearTimeout(messageUpdateTimeout);
     messageUpdateTimeout = setTimeout(() => {
       player.message = '';
-    }, 5000);
+    }, 3000);
   });
 
 });
 
+///////
 
 
-
-
-// Serve JavaScript files directly from areas/js directory
 app.use('/js', express.static(path.join(__dirname, 'public', 'areas', 'js')));
+app.use('/media', express.static(path.join(__dirname, 'public', 'areas', 'media')));
+app.use('/css', express.static(path.join(__dirname, 'public', 'areas', 'css')));
 
-// Serve media files directly from areas/media directory
-app.use('/areas/media', express.static(path.join(__dirname, 'public', 'areas', 'media')));
-
-
-const checkLoginStatus = async (req, res, next) => {
-  const requestedUrl = req.originalUrl;
-   // Exclude /media route from triggering login check
-   if (requestedUrl.startsWith('/areas/media')) {
-    return next(); // Skip login check for /media route
-  }
-  // Exclude /media route from triggering login check
-  if (requestedUrl.startsWith('/areas/js')) {
-    return next(); // Skip login check for /media route
-  }
-
-  const tabid = req.params.tabid;
-  console.log(tabid);
-  const currentTabdata = await TabData.findOne({ tabId: tabid });
-
-  // Rest of your logic to check login status...
-
-  if (!currentTabdata) {
-      console.log('tab data does not exist');
-      return res.redirect('/login.html');
-  }   
-
-  // if (currentTabdata.isLoggedIn) {
-  //   console.log('already logged in');
-  //   return res.redirect('/login.html');
-  // }
-
-  const currentUserUsername = currentTabdata.currentUsername;
-  const currentUser = await getUserByUsername(currentUserUsername);
-
-  if (currentUser.tabIdInUse !== tabid) {
-    console.log('user logined from somewhere else');
-    return res.redirect('/login.html');
-  }
-
-  // Continue with next middleware if needed
-  next();
-};
-
-
-// Route for serving files after login status check
-app.get('/areas/:tabid/:filename', checkLoginStatus, async (req, res) => {
-  const tabid = req.params.tabid;
-  const filename = req.params.filename;
-  
-  const currentTabdata = await TabData.findOne({ tabId: tabid });
-  if (currentTabdata) {
-    currentTabdata.isLoggedIn = true;
-    await currentTabdata.save();
-  }
-
-  const filePath = path.join(__dirname, 'public', 'areas', filename);
-  res.sendFile(filePath);
-});
-
-// // Serve static files separately except media and JavaScript
 app.use(express.static(path.join(__dirname, 'public')));
 
 
-
-
-//POST login LOGIN LOGIN LOGIN
 app.post('/login', async (req, res) => {
   const { loginUsername, loginPassword, currentTabId, timeOfLogin } = req.body;
   const user = await getUserByUsername(loginUsername);
@@ -272,10 +239,6 @@ app.post('/login', async (req, res) => {
     };
 
 
-    // if(existingSession) {
-    //   await TabData.deleteOne({ _id: existingSession._id  });
-    // }
-
     const newTab = new TabData({
       tabId: currentTabId,
       isLoggedIn: false,
@@ -294,7 +257,6 @@ app.post('/login', async (req, res) => {
     }
 
     res.status(200).json({ message: 'Login successful' });
-    // res.redirect('areas/thePalace.html');
 
   } catch (error) {
     console.error('Login error:', error);
@@ -303,25 +265,20 @@ app.post('/login', async (req, res) => {
 });
 
 
-
-// POST logout (change the session again)
 app.post('/logout', async (req, res) => {
   const { currentTabId } = req.body;
 
   try {
-    // Find the current user and tab data associated with the currentTabId
     const currentTabdata = await TabData.findOne({ tabId: currentTabId });
     const currentUser = await getUserByUsername(currentTabdata.currentUsername);
 
 
     if (currentUser && currentTabdata) {
-      // Update the isLoggedIn field to false for the associated tab data
       currentTabdata.isLoggedIn = false;
       await currentTabdata.save();
-      console.log(`Tab data for ${currentTabId} will be deleted.`);
+      // console.log(`Tab data for ${currentTabId} will be deleted.`);
 
 
-      // Set a timeout to delete tab data after 120 seconds if not changed back to true
       setTimeout(async () => {
         const updatedTabData = await TabData.findOne({ tabId: currentTabId });
 
@@ -329,7 +286,7 @@ app.post('/logout', async (req, res) => {
         if (updatedTabData && !updatedTabData.isLoggedIn) {
           await TabData.deleteOne({ tabId: currentTabId });
         }
-      }, 120000); // 120 seconds
+      }, 60000);
     }
 
     res.status(200).send('Logout successful');
@@ -340,7 +297,6 @@ app.post('/logout', async (req, res) => {
 });
 
 
-//POST signup
 app.post('/signup', async (req, res) => {
     const { username, email, password, id, confirmed, confirmationToken, confirmationLink } = req.body;
 
@@ -361,9 +317,10 @@ app.post('/signup', async (req, res) => {
 
 });
 
+
+
 //Confirm email Route
 app.use('/confirmation', confirmationRouter);
-
 
 
 

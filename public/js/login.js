@@ -1,7 +1,7 @@
 // const socket = io(); // Connects to the Socket.IO server
 
 function generateTabId() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+  return 'txxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
     const r = Math.random() * 16 | 0;
     const v = c === 'x' ? r : (r & 0x3 | 0x8);
     return v.toString(16);
@@ -64,7 +64,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setCurrentUsername(loginUsername);
 
 
-    const afterLoginLink = `http://localhost:3000/areas/${currentTabId}/thePalace.html`;
+    const afterLoginLink = `http://localhost:3000/areas/thePalace.html`;
 
 
     try {
@@ -94,3 +94,5 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
 });
+
+

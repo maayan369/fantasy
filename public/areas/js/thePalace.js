@@ -8,8 +8,17 @@ function getCurrentUsername() {
 
 const usersContainer = document.getElementById('usersContainer');
 
-const currentTabId = getCurrentTabId();
-const currentUsername = getCurrentUsername();
+
+function getRoomFromPath(url) {
+  const parts = url.split('/');
+  const fileName = parts[parts.length - 1];
+  const room = fileName.split('.')[0];
+  return room;
+}
+
+const currentRoom = getRoomFromPath(window.location.pathname);
+console.log(currentRoom);
+
 const socket = io({ query: { tabId: currentTabId } });
 
 const backgroundImage = document.getElementById('backgroundImage');
@@ -60,10 +69,10 @@ function isPixelTransparent(x, y) {
 
 
 socket.on('newPositions', (data) => {
-  charactersData = data;
+  socket.emit('joinRoom', currentRoom);
+  charactersData = data.filter(player => player.room === currentRoom);
   drawCharacters();
 });
-
 
 
 
@@ -173,6 +182,8 @@ socket.on('forceDisconnect', () => {
 
   overlay.style.display = 'block';
   customAlert.style.display = 'block';
+  sessionStorage.setItem('currentTabId', null);
+  sessionStorage.setItem('currentUsername', null);
 
   okButton.onclick = () => {
     overlay.style.display = 'none';
@@ -189,28 +200,4 @@ socket.on('redirectLogin', () => {
 });
 
 
-document.getElementById('logoutBtn').addEventListener('click', async () => {
-  const currentTabId = getCurrentTabId();
-  try {
-    const response = await fetch('/logout', {
-      method: 'POST',
-      credentials: 'same-origin', // Ensures cookies are sent with the request
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ currentTabId })
-    });
-    if (response.ok) {
-      // Handle successful logout
-      console.log('Logged out successfully!');
-      // Redirect the user to the login page or perform other actions
-      window.location.href = '/login.html'; // Redirect to login page
-    } else {
-      // Handle errors if needed
-      console.error('Logout failed');
-    }
-  } catch (error) {
-    console.error('Error during logout:', error);
-  }
-});
 
