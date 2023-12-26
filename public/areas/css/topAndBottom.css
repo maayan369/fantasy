@@ -1,0 +1,35 @@
+
+#logoutBtn {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
+}
+
+#movePage {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 10;
+}
+
+
+#msgInput {
+  height: 100%;
+  padding-right: 7px;
+  width: 50vw;
+
+}
+
+#sendBtn {
+  height: 120%;
+  width: 70px;
+}
+
+#chat-form {
+  position: relative;
+  bottom: 10vh;
+  left: auto;
+  height: 30px;
+  z-index: 10;
+}

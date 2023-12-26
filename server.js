@@ -251,7 +251,6 @@ app.post('/login', async (req, res) => {
 
     
     if(user.tabIdInUse !== currentTabId) {
-      console.log('logout from somewhere alse');
       user.tabIdInUse = currentTabId;
       await user.save();
     }

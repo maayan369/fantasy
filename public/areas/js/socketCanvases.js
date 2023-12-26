@@ -1,13 +1,4 @@
-function getCurrentTabId() {
-  return sessionStorage.getItem('currentTabId');
-}
-
-function getCurrentUsername() {
-  return sessionStorage.getItem('currentUsername');
-}
-
 const usersContainer = document.getElementById('usersContainer');
-
 
 function getRoomFromPath(url) {
   const parts = url.split('/');
@@ -168,8 +159,6 @@ backgroundImage.addEventListener('click', (event) => {
 
 
 
-
-
 //////
 
 
@@ -177,25 +166,23 @@ socket.emit('initialize', currentTabId);
 
 socket.on('forceDisconnect', () => {
   const overlay = document.getElementById('overlay');
-  const customAlert = document.getElementById('customAlert');
+  const forceDisconnectionAlert = document.getElementById('forceDisconnectionAlert');
   const okButton = document.getElementById('okButton');
 
   overlay.style.display = 'block';
-  customAlert.style.display = 'block';
+  forceDisconnectionAlert.style.display = 'block';
   sessionStorage.setItem('currentTabId', null);
   sessionStorage.setItem('currentUsername', null);
 
   okButton.onclick = () => {
     overlay.style.display = 'none';
-    customAlert.style.display = 'none';
-    window.location.href = '/login.html'; // Redirect to login page or perform other actions
+    forceDisconnectionAlert.style.display = 'none';
+    window.location.href = '/login.html';
   };
 });
 
 socket.on('redirectLogin', () => {
-  // Handle redirect to login page
   console.log('Redirecting to login page...');
-  // Perform redirection to the login page
   window.location.href = '/login.html';
 });
 
