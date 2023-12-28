@@ -46,12 +46,9 @@ const TabDataSchema = new mongoose.Schema({
 
 const TabData = mongoose.model('TabData', TabDataSchema);
 
-
-var Socket_Connected_Users_List = [];
-var Players_List = [];
-const activeSessions = [];
-const roomPlayers = [];
- 
+var Socket_Connected_Users_List = {};
+var Players_List = {};
+var playersInCurrentRoom = {};
 
 function getRoomFromPath(url) {
   const parts = url.split('/');
@@ -60,7 +57,7 @@ function getRoomFromPath(url) {
   return room;
 }
 
-var Player = function(room, id, username, tabId) {
+var Player = function(room, username, tabId) {
   var self = {
     room: room,
     x: 700,
@@ -71,6 +68,7 @@ var Player = function(room, id, username, tabId) {
     targetY: 700,
     speed: 3,
     message: '',
+    zIndex: 0,
   };
   
   self.updatePosition = function() {
@@ -103,17 +101,27 @@ setInterval(function() {
       y: player.y,
       username: player.username,
       message: player.message,
+      zIndex: player.zIndex,
     });
   }
-  for (var tabId in Socket_Connected_Users_List) {
+  for (var tabId in Players_List) {
     var socket = Socket_Connected_Users_List[tabId];
     socket.emit('newPositions', pack);
   }
 }, 100 / 25);
 
 
+function getPlayerByUsername(username) {
+  for (const tabId in Players_List) {
+    if (Players_List[tabId].username === username) {
+      return Players_List[tabId];
+    }
+  }
+  return null;
+}
+
+
 io.on('connection', async (socket) => {
-  // console.log('Socket login successful');
   const tabId = socket.handshake.query.tabId;
   const roomName = getRoomFromPath(socket.handshake.headers.referer);
   socket.room = roomName;
@@ -122,7 +130,6 @@ io.on('connection', async (socket) => {
   const username = currentTabdata ? currentTabdata.currentUsername : null;
   socket.username = username;
   const previousTabId = currentTabdata ? currentTabdata.previousTabId : null;
-
 
   if (!currentTabdata) {
     console.log('No tab data provided. Redirecting to login.');
@@ -136,38 +143,58 @@ io.on('connection', async (socket) => {
     return;
   }
 
-
   if (currentTabdata) {
     currentTabdata.isLoggedIn = true;
     await currentTabdata.save();
   }
 
+  if (previousTabId) {
+    io.to(Players_List[previousTabId]).emit('forceDisconnect');
+    delete Socket_Connected_Users_List[previousTabId];
+    delete Players_List[previousTabId];
+    await TabData.deleteOne({ tabId: previousTabId });
 
+    playersInCurrentRoom = Object.values(Players_List).filter(
+      (otherPlayer) => otherPlayer.room === socket.room
+    );
+  };
+
+
+  Socket_Connected_Users_List[tabId] = socket;
+  var player = Player(socket.room, socket.username, socket.tabId);
+  Players_List[tabId] = player;
+
+  
   socket.on('joinRoom', (currentRoom) => {
     player.room = currentRoom;
     socket.join(currentRoom);
   });
-
-
-  if (previousTabId) {
-    io.to(activeSessions[previousTabId]).emit('forceDisconnect');
-    delete Socket_Connected_Users_List[previousTabId];
-    delete Players_List[previousTabId];
-    delete activeSessions[previousTabId];
-    await TabData.deleteOne({ tabId: previousTabId });
-  };
-
-  activeSessions[tabId] = socket.id;
-
-  Socket_Connected_Users_List[tabId] = socket;
-  var player = Player(socket.room, tabId, socket.username, socket.tabId);
-  Players_List[tabId] = player;
-
   
+  socket.on('setZIndex', (username, currentZIndex) => {
+    player.zIndex = currentZIndex;
+
+    playersInCurrentRoom = Object.values(Players_List).filter(
+      (otherPlayer) => otherPlayer.room === socket.room
+    );
+  });
+
   socket.on('disconnect', async () => {
+    const leavingPlayerZIndex = player.zIndex;
+
+    for (let i = 0; i < playersInCurrentRoom.length; i++) {
+      const otherPlayerInTheRoom = playersInCurrentRoom[i];
+      const thePlayerUsername = otherPlayerInTheRoom.username;
+      const theOtherPlayer = getPlayerByUsername(thePlayerUsername);
+
+      if (theOtherPlayer && theOtherPlayer.zIndex > leavingPlayerZIndex) {
+        otherPlayerInTheRoom.zIndex -= 1;
+        theOtherPlayer.zIndex -= 1;
+      }
+    }
+
     delete Socket_Connected_Users_List[tabId];
     delete Players_List[tabId];
-    delete activeSessions[tabId];
+
     if (currentTabdata) {
       try {
         const currentUser = await getUserByUsername(currentTabdata.currentUsername);
@@ -175,8 +202,6 @@ io.on('connection', async (socket) => {
         if (currentUser && currentTabdata) {
           currentTabdata.isLoggedIn = false;
           await currentTabdata.save();
-          // console.log(`Tab data for ${socket.tabId} will be deleted.`);
-          // Set a timeout to delete tab data after 120 seconds if not changed back to true
           setTimeout(async () => {
             const updatedTabData = await TabData.findOne({ tabId: socket.tabId });
 
@@ -191,11 +216,35 @@ io.on('connection', async (socket) => {
     }
   });
   
+  
 
   socket.on('clickPosition', (data) => {
     player.targetX = data.x;
     player.targetY = data.y;
+
+    const movingPlayerZIndex = player.zIndex;
+    
+    for (let i = 0; i < playersInCurrentRoom.length; i++) {
+      const otherPlayerInTheRoom = playersInCurrentRoom[i];
+      const thePlayerUsername = otherPlayerInTheRoom.username;
+      const theOtherPlayer = getPlayerByUsername(thePlayerUsername);
+      console.log('this:', theOtherPlayer.zIndex);
+      console.log('more than', movingPlayerZIndex);
+      if (theOtherPlayer && theOtherPlayer.zIndex > movingPlayerZIndex) {
+        otherPlayerInTheRoom.zIndex -= 1;
+        theOtherPlayer.zIndex -= 1;
+      }
+    }
+
+    player.zIndex = data.currentZIndex;
+
+    playersInCurrentRoom = Object.values(Players_List).filter(
+      (otherPlayer) => otherPlayer.room === socket.room
+    );
+
+
   });
+  
 
   let messageUpdateTimeout;
 
@@ -290,7 +339,7 @@ app.post('/logout', async (req, res) => {
 
     res.status(200).send('Logout successful');
   } catch (error) {
-    console.error('Logout error:', error);
+    console.error('Logout errrror:', error);
     res.status(500).send('Internal server error');
   }
 });

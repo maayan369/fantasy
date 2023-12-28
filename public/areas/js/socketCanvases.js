@@ -1,4 +1,5 @@
 const usersContainer = document.getElementById('usersContainer');
+const clickingContainer = document.getElementById('clickingContainer');
 
 function getRoomFromPath(url) {
   const parts = url.split('/');
@@ -8,7 +9,7 @@ function getRoomFromPath(url) {
 }
 
 const currentRoom = getRoomFromPath(window.location.pathname);
-console.log(currentRoom);
+// console.log(currentRoom);
 
 const socket = io({ query: { tabId: currentTabId } });
 
@@ -23,7 +24,7 @@ const sendButton = document.getElementById('send-button');
 const chatForm = document.getElementById('chat-form');
 const messageInput = document.getElementById('msgInput');
 let charactersData = [];
-
+var currentZIndex;
 
 // Original canvas dimensions
 const originalBackgroundWidth = 1920;
@@ -50,8 +51,6 @@ chatForm.addEventListener('submit', (e) => {
   }
 });
 
-
-
 function isPixelTransparent(x, y) {
   const pixelData = tempCtx.getImageData(x, y, 1, 1).data;
   const alpha = pixelData[3]; 
@@ -59,9 +58,14 @@ function isPixelTransparent(x, y) {
 }
 
 
+
+
 socket.on('newPositions', (data) => {
-  socket.emit('joinRoom', currentRoom);
   charactersData = data.filter(player => player.room === currentRoom);
+  currentZIndex = charactersData.length;
+  socket.emit('joinRoom', currentRoom);
+  // console.log(charactersData);
+
   drawCharacters();
 });
 
@@ -73,8 +77,8 @@ function drawCharacters() {
   const rect = groundImage.getBoundingClientRect();
 
   for (let i = 0; i < charactersData.length; i++) {
-    const user = charactersData[i];
 
+    const user = charactersData[i];
 
     const xPos = (user.x / originalBackgroundWidth) * currentBackgroundWidth + rect.left;
     const yPos = (user.y / originalBackgroundHeight) * currentBackgroundHeight + rect.top;
@@ -96,7 +100,9 @@ function drawCharacters() {
 
     userDiv.style.width = (currentBackgroundWidth / 12) +'px';
     userDiv.style.height = (currentBackgroundWidth / 12) +'px';
-    
+    userDiv.style.zIndex = user.zIndex;
+    // console.log(user.zIndex);
+
     usernameText.style.fontSize = (currentBackgroundWidth / 60) +'px';
 
     const userWidth = userDiv.offsetWidth;
@@ -136,26 +142,62 @@ function resizeCanvases() {
 }
 
 
-window.addEventListener('load', resizeCanvases);
+window.addEventListener('load', function() {
+  socket.emit('setZIndex', { username: currentUsername, currentZIndex: currentZIndex});
+  resizeCanvases();
+});
+
 window.addEventListener('resize', resizeCanvases);
 
-// should fix it here
-backgroundImage.addEventListener('click', (event) => {
+function findClickedUser(x, y) {
   const rect = groundImage.getBoundingClientRect();
 
+  for (let i = 0; i < charactersData.length; i++) {
+    const user = charactersData[i];
+    const userDiv = document.getElementById(user.username);
+    const userRect = userDiv.getBoundingClientRect();
+    const userLeft = userRect.left - rect.left;
+    const userTop = userRect.top - rect.top;
+    const userRight = userLeft + userRect.width;
+    const userBottom = userTop + userRect.height;
+
+    if (x >= userLeft && x <= userRight && y >= userTop && y <= userBottom) {
+      return user;
+    }
+  }
+
+  return null;
+}
+
+
+
+clickingContainer.addEventListener('click', (event) => {
+  const rect = groundImage.getBoundingClientRect();
   const x = event.clientX - rect.left;
   const y = event.clientY - rect.top;
 
-  // Calculate click position based on the current dimensions of the background image
   const clickX = (x / currentBackgroundWidth) * originalBackgroundWidth;
   const clickY = (y / currentBackgroundHeight) * originalBackgroundHeight;
 
-  const isTransparent = isPixelTransparent(x, y);
+  const clickedUser = findClickedUser(x, y);
 
-  if (!isTransparent) {
-    socket.emit('clickPosition', { x: clickX, y: clickY });
+  if (clickedUser && clickedUser.username !== currentUsername) {
+    console.log(clickedUser.username);
+    // Perform actions for the clicked user (like opening their profile)
+    // openUserProfilePopup(clickedUser);
+  } else {
+    const isTransparent = isPixelTransparent(x, y);
+    // console.log(charactersData);
+
+    if (!isTransparent) {
+      socket.emit('clickPosition', { x: clickX, y: clickY, currentZIndex: currentZIndex });
+    }
+    
+    drawCharacters();
+    console.log(usersContainer.innerHTML);
   }
 });
+
 
 
 
