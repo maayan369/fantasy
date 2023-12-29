@@ -24,7 +24,6 @@ const sendButton = document.getElementById('send-button');
 const chatForm = document.getElementById('chat-form');
 const messageInput = document.getElementById('msgInput');
 let charactersData = [];
-// let currentZIndex;
 
 // Original canvas dimensions
 const originalBackgroundWidth = 1920;
@@ -62,7 +61,6 @@ function isPixelTransparent(x, y) {
 
 socket.on('newPositions', (data) => {
   charactersData = data.filter(player => player.room === currentRoom);
-  // currentZIndex = charactersData.length;
   socket.emit('joinRoom', currentRoom);
 
   drawCharacters();
@@ -102,7 +100,6 @@ function drawCharacters() {
     userDiv.style.width = (currentBackgroundWidth / 12) +'px';
     userDiv.style.height = (currentBackgroundWidth / 12) +'px';
     userDiv.style.zIndex = user.zIndex;
-    // console.log(user.zIndex);
 
     usernameText.style.fontSize = (currentBackgroundWidth / 60) +'px';
 
@@ -144,7 +141,6 @@ function resizeCanvases() {
 
 
 window.addEventListener('load', function() {
-  // socket.emit('setZIndex', { username: currentUsername, currentZIndex: charactersData.length});
   resizeCanvases();
 });
 
@@ -193,11 +189,9 @@ clickingContainer.addEventListener('click', (event) => {
     if (!isTransparent) {
       socket.emit('clickPosition', { x: clickX, y: clickY });
     }
-    // socket.emit('updateZIndex', { username: currentUsername, currentZIndex: currentZIndex});
-
     
     drawCharacters();
-    console.log(usersContainer.innerHTML);
+    // console.log(usersContainer.innerHTML);
   }
 });
 

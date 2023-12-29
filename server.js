@@ -204,19 +204,9 @@ io.on('connection', async (socket) => {
     return;
   }
 
-  // socket.on('updateZIndex', (username, currentZIndex) => {
-  //   updateZIndexFunction(username, currentZIndex)
-  //   .then(() => {
-  //     console.log(playersInCurrentRoom);
-  //   })
-  //   .catch((error) => {
-  //     console.log('Rejected:', error);
-  //   });
-  // });
 
   socket.on('disconnect', async () => {
     updateZIndexFunction(socket.username, playersInCurrentRoom.length);
-    // socket.emit('updateZIndex', { username: socket.username, currentZIndex: playersInCurrentRoom.length});
     delete Socket_Connected_Users_List[tabId];
     delete Players_List[tabId];
 
@@ -244,9 +234,7 @@ io.on('connection', async (socket) => {
   
 
   socket.on('clickPosition', (data) => {
-    // socket.emit('updateZIndex', { username: socket.username, currentZIndex: playersInCurrentRoom.length}); 
     updateZIndexFunction(socket.username, playersInCurrentRoom.length);
- 
 
     player.targetX = data.x;
     player.targetY = data.y;
