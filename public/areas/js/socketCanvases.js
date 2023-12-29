@@ -24,7 +24,7 @@ const sendButton = document.getElementById('send-button');
 const chatForm = document.getElementById('chat-form');
 const messageInput = document.getElementById('msgInput');
 let charactersData = [];
-var currentZIndex;
+// let currentZIndex;
 
 // Original canvas dimensions
 const originalBackgroundWidth = 1920;
@@ -62,12 +62,13 @@ function isPixelTransparent(x, y) {
 
 socket.on('newPositions', (data) => {
   charactersData = data.filter(player => player.room === currentRoom);
-  currentZIndex = charactersData.length;
+  // currentZIndex = charactersData.length;
   socket.emit('joinRoom', currentRoom);
-  // console.log(charactersData);
 
   drawCharacters();
 });
+
+
 
 
 
@@ -143,7 +144,7 @@ function resizeCanvases() {
 
 
 window.addEventListener('load', function() {
-  socket.emit('setZIndex', { username: currentUsername, currentZIndex: currentZIndex});
+  // socket.emit('setZIndex', { username: currentUsername, currentZIndex: charactersData.length});
   resizeCanvases();
 });
 
@@ -190,8 +191,10 @@ clickingContainer.addEventListener('click', (event) => {
     // console.log(charactersData);
 
     if (!isTransparent) {
-      socket.emit('clickPosition', { x: clickX, y: clickY, currentZIndex: currentZIndex });
+      socket.emit('clickPosition', { x: clickX, y: clickY });
     }
+    // socket.emit('updateZIndex', { username: currentUsername, currentZIndex: currentZIndex});
+
     
     drawCharacters();
     console.log(usersContainer.innerHTML);

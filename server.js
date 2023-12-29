@@ -164,34 +164,59 @@ io.on('connection', async (socket) => {
   var player = Player(socket.room, socket.username, socket.tabId);
   Players_List[tabId] = player;
 
-  
+  playersInCurrentRoom = Object.values(Players_List).filter(
+    (otherPlayer) => otherPlayer.room === socket.room
+  );
+
+  player.zIndex = playersInCurrentRoom.length;
+
+  playersInCurrentRoom = Object.values(Players_List).filter(
+    (otherPlayer) => otherPlayer.room === socket.room
+  );
+
   socket.on('joinRoom', (currentRoom) => {
     player.room = currentRoom;
     socket.join(currentRoom);
   });
-  
-  socket.on('setZIndex', (username, currentZIndex) => {
-    player.zIndex = currentZIndex;
+
+  function updateZIndexFunction(username, currentZIndex) {
+    const currentPlayerInPlayersList = getPlayerByUsername(username);
+    const currentPlayerZIndex = currentPlayerInPlayersList.zIndex;
+
+    for (let i = 0; i < playersInCurrentRoom.length; i++) {
+      if (playersInCurrentRoom[i].username !== username) {
+        const otherPlayerInTheRoom = playersInCurrentRoom[i];
+        const theOtherPlayerUsername = otherPlayerInTheRoom.username;
+        const theOtherPlayerInPlayersList = getPlayerByUsername(theOtherPlayerUsername);
+
+        if (theOtherPlayerInPlayersList && otherPlayerInTheRoom.zIndex > currentPlayerZIndex) {
+          // otherPlayerInTheRoom.zIndex -= 1;
+          theOtherPlayerInPlayersList.zIndex -= 1;
+        }
+      }
+    }
+    currentPlayerInPlayersList.zIndex = currentZIndex;
 
     playersInCurrentRoom = Object.values(Players_List).filter(
       (otherPlayer) => otherPlayer.room === socket.room
     );
-  });
+
+    return;
+  }
+
+  // socket.on('updateZIndex', (username, currentZIndex) => {
+  //   updateZIndexFunction(username, currentZIndex)
+  //   .then(() => {
+  //     console.log(playersInCurrentRoom);
+  //   })
+  //   .catch((error) => {
+  //     console.log('Rejected:', error);
+  //   });
+  // });
 
   socket.on('disconnect', async () => {
-    const leavingPlayerZIndex = player.zIndex;
-
-    for (let i = 0; i < playersInCurrentRoom.length; i++) {
-      const otherPlayerInTheRoom = playersInCurrentRoom[i];
-      const thePlayerUsername = otherPlayerInTheRoom.username;
-      const theOtherPlayer = getPlayerByUsername(thePlayerUsername);
-
-      if (theOtherPlayer && theOtherPlayer.zIndex > leavingPlayerZIndex) {
-        otherPlayerInTheRoom.zIndex -= 1;
-        theOtherPlayer.zIndex -= 1;
-      }
-    }
-
+    updateZIndexFunction(socket.username, playersInCurrentRoom.length);
+    // socket.emit('updateZIndex', { username: socket.username, currentZIndex: playersInCurrentRoom.length});
     delete Socket_Connected_Users_List[tabId];
     delete Players_List[tabId];
 
@@ -219,30 +244,12 @@ io.on('connection', async (socket) => {
   
 
   socket.on('clickPosition', (data) => {
+    // socket.emit('updateZIndex', { username: socket.username, currentZIndex: playersInCurrentRoom.length}); 
+    updateZIndexFunction(socket.username, playersInCurrentRoom.length);
+ 
+
     player.targetX = data.x;
     player.targetY = data.y;
-
-    const movingPlayerZIndex = player.zIndex;
-    
-    for (let i = 0; i < playersInCurrentRoom.length; i++) {
-      const otherPlayerInTheRoom = playersInCurrentRoom[i];
-      const thePlayerUsername = otherPlayerInTheRoom.username;
-      const theOtherPlayer = getPlayerByUsername(thePlayerUsername);
-      console.log('this:', theOtherPlayer.zIndex);
-      console.log('more than', movingPlayerZIndex);
-      if (theOtherPlayer && theOtherPlayer.zIndex > movingPlayerZIndex) {
-        otherPlayerInTheRoom.zIndex -= 1;
-        theOtherPlayer.zIndex -= 1;
-      }
-    }
-
-    player.zIndex = data.currentZIndex;
-
-    playersInCurrentRoom = Object.values(Players_List).filter(
-      (otherPlayer) => otherPlayer.room === socket.room
-    );
-
-
   });
   
 
