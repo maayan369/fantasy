@@ -339,6 +339,16 @@ app.post('/logout', async (req, res) => {
   }
 });
 
+app.get('/check-username/:username', async (req, res) => {
+  try {
+    const { username } = req.params;
+    const user = await User.findOne({ username });
+    res.json({ exists: !!user });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 
 app.post('/signup', async (req, res) => {
     const { username, email, password, id, confirmed, confirmationToken, confirmationLink } = req.body;

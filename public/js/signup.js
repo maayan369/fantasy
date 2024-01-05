@@ -1,3 +1,4 @@
+
 const signupForm = document.getElementById('createAccount');
 const signupUsernameInput = document.getElementById("signupUsername");
 const signupEmailInput = document.getElementById("signupEmail");
@@ -5,6 +6,7 @@ const signupPasswordInput = document.getElementById("signupPassword");
 const signupConfirmPasswordInput = document.getElementById("signupConfirmPassword");
 
 let sendForm = true;
+let usernameExistanceValid = false;
 
 
 function setInputError(inputElement, message) {
@@ -17,26 +19,60 @@ function clearInputError(inputElement) {
   inputElement.parentElement.querySelector(".form__input--error-message").textContent = "";
 };
 
+function isFormValid() {
+  if (
+    usernameExistanceValid &&
+    signupConfirmPasswordInput.value === signupPasswordInput.value
+  ) {
+    sendForm = true;
+  }
+};
+
 
 //Set if the form can be sent
 document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".form__input").forEach(inputElement => {
 
     //username sign up error check
-    signupUsernameInput.addEventListener("blur", e => {
-      if (signupUsernameInput.value.length > 0 && signupUsernameInput.value.length < 6) {
-        setInputError(signupUsernameInput, "שם משתמש חייב להכיל לפחות 6 תווים");
-        sendForm = false;
-      } else {
-        clearInputError(signupUsernameInput);
-        isFormValid();
+    signupUsernameInput.addEventListener("blur", async (e) => {
+      const username = signupUsernameInput.value;
+      if(username){
+        try {
+          const response = await fetch(`/check-username/${username}`);
+          const data = await response.json();
+      
+          if (data.exists) {
+            setInputError(signupUsernameInput, 'שם משתמש תפוס');
+            sendForm = false;
+            usernameExistanceValid = false;
+  
+          } else {
+            clearInputError(signupUsernameInput);
+            usernameExistanceValid = true;
+            isFormValid();
+          }
+        } catch (error) {
+          console.error('Error:', error);
+        };
       }
     });
-    signupUsernameInput.addEventListener("input", () => {
-      if (signupUsernameInput.value.length === 0 || signupUsernameInput.value.length >= 6) {
-        clearInputError(signupUsernameInput);
-        isFormValid();
-      }
+
+    signupUsernameInput.addEventListener("input", async () => {
+      const username = signupUsernameInput.value;
+      if(username){
+        try {
+          const response = await fetch(`/check-username/${username}`);
+          const data = await response.json();
+      
+          if (!data.exists) {
+            usernameExistanceValid = true;
+            clearInputError(signupUsernameInput);
+            isFormValid();
+          }
+        } catch (error) {
+          console.error('Error:', error);
+        };
+      }   
     });
 
     //confirm password sign up error check
@@ -65,14 +101,6 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-function isFormValid() {
-  if (
-    signupUsernameInput.value.length === 0 || signupUsernameInput.value.length >= 6 &&
-    signupConfirmPasswordInput.value === signupPasswordInput.value
-  ) {
-    sendForm = true;
-  }
-};
 
 //make an id
 function generateUniqueId() {
