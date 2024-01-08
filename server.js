@@ -10,10 +10,7 @@ const app = express();
 const server = http.createServer(app);
 const io = socketio(server); 
 
-// const session = require('express-session');
-// const MongoDBStore = require('connect-mongodb-session')(session);
-
-const { User, getUserByUsername, verifyPassword } = require('./utils/Users.js')
+const { User, getUserByUsername, verifyPassword } = require('./utils/Users.js');
 
 const confirmationRouter = require('./routes/confirmationRoute.js')
 const { sendConfirmEmail } = require('./mailer/confirmEmail.js');
@@ -46,8 +43,9 @@ const TabDataSchema = new mongoose.Schema({
 
 const TabData = mongoose.model('TabData', TabDataSchema);
 
-var Socket_Connected_Users_List = {};
-var Players_List = {};
+var Socket_Connected_Users_List = [];
+var Players_List = [];
+const activeSessions = [];
 var playersInCurrentRoom = {};
 
 function getRoomFromPath(url) {
@@ -148,18 +146,19 @@ io.on('connection', async (socket) => {
     await currentTabdata.save();
   }
 
+
   if (previousTabId) {
-    io.to(Players_List[previousTabId]).emit('forceDisconnect');
+    io.to(activeSessions[previousTabId]).emit('forceDisconnect');
     delete Socket_Connected_Users_List[previousTabId];
     delete Players_List[previousTabId];
+    delete activeSessions[previousTabId];
     await TabData.deleteOne({ tabId: previousTabId });
-
     playersInCurrentRoom = Object.values(Players_List).filter(
       (otherPlayer) => otherPlayer.room === socket.room
     );
   };
 
-
+  activeSessions[tabId] = socket.tabId;
   Socket_Connected_Users_List[tabId] = socket;
   var player = Player(socket.room, socket.username, socket.tabId);
   Players_List[tabId] = player;
@@ -206,9 +205,12 @@ io.on('connection', async (socket) => {
 
 
   socket.on('disconnect', async () => {
+    // console.log('disconnected');
     updateZIndexFunction(socket.username, playersInCurrentRoom.length);
     delete Socket_Connected_Users_List[tabId];
     delete Players_List[tabId];
+    delete activeSessions[tabId];
+
 
     if (currentTabdata) {
       try {
@@ -226,7 +228,7 @@ io.on('connection', async (socket) => {
           }, 60000);
         }
       } catch (error) {
-        console.error('Logout error:', error);
+        console.error('Logout error1:', error);
       }
     }
   });
@@ -334,7 +336,7 @@ app.post('/logout', async (req, res) => {
 
     res.status(200).send('Logout successful');
   } catch (error) {
-    console.error('Logout errrror:', error);
+    console.error('Logout error2:', error);
     res.status(500).send('Internal server error');
   }
 });
@@ -351,12 +353,13 @@ app.get('/check-username/:username', async (req, res) => {
 
 
 app.post('/signup', async (req, res) => {
-    const { username, email, password, id, confirmed, confirmationToken, confirmationLink } = req.body;
+    const { username, email, password, id, confirmationToken, confirmationLink } = req.body;
 
+    
     try{
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
-        const newUser = new User({ username, email, password: hashedPassword, id, confirmed, confirmationToken, tabId:''});
+        const newUser = new User({ username, email, password: hashedPassword, id, confirmed: false, confirmationToken, tabId:'', money: 0});
         const savedUser = await newUser.save();
         res.status(201).json(savedUser);
 

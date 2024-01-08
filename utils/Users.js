@@ -13,6 +13,7 @@ const userSchema = new mongoose.Schema({
     },
     confirmationToken: String,
     tabIdInUse: String, // This will store the user's tab ID
+    money: Number,
 });
 
 const User = new mongoose.model('User', userSchema);
@@ -48,19 +49,18 @@ async function getUserByTabIdInUse(tabIdInUse) {
 };
 
 async function getUserByTokenAndConfirm(token) {
-    try {
-        // Update user's 'confirmed' field to true in the database
-        const user = await User.findOneAndUpdate(
-            { confirmationToken: token },
-            { confirmed: true },
-            { new: true } // Get the modified document as a result
-        );
+  try {
+    // Update user's 'confirmed' field to true in the database
+    const user = await User.findOneAndUpdate(
+      { confirmationToken: token },
+      { confirmed: true },
+    );
 
-        return user; // Return the user object
-    } catch (error) {
-        console.error('Error finding user:', error);
-        throw error;
-    }
+    return user; // Return the user object
+  } catch (error) {
+    console.error('Error finding user:', error);
+    throw error;
+  }
 };
 
 async function verifyPassword(password, hashedPassword) {
