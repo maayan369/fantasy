@@ -203,27 +203,27 @@ clickingContainer.addEventListener('click', (event) => {
 
 socket.emit('initialize', currentTabId);
 
-socket.on('forceDisconnect', () => {
-  const overlay = document.getElementById('overlay');
-  const forceDisconnectionAlert = document.getElementById('forceDisconnectionAlert');
-  const okButton = document.getElementById('okButton');
+// socket.on('forceDisconnect', () => {
+//   const overlay = document.getElementById('overlay');
+//   const forceDisconnectionAlert = document.getElementById('forceDisconnectionAlert');
+//   const okButton = document.getElementById('okButton');
 
-  overlay.style.display = 'block';
-  forceDisconnectionAlert.style.display = 'block';
-  sessionStorage.setItem('currentTabId', null);
-  sessionStorage.setItem('currentUsername', null);
+//   overlay.style.display = 'block';
+//   forceDisconnectionAlert.style.display = 'block';
+//   sessionStorage.setItem('currentTabId', null);
+//   sessionStorage.setItem('currentUsername', null);
 
-  okButton.onclick = () => {
-    overlay.style.display = 'none';
-    forceDisconnectionAlert.style.display = 'none';
-    window.location.href = '/login.html';
-  };
-});
+//   okButton.onclick = () => {
+//     overlay.style.display = 'none';
+//     forceDisconnectionAlert.style.display = 'none';
+//     window.location.href = '/login.html';
+//   };
+// });
 
-socket.on('redirectLogin', () => {
-  console.log('Redirecting to login page...');
-  window.location.href = '/login.html';
-});
+// socket.on('redirectLogin', () => {
+//   console.log('Redirecting to login page...');
+//   window.location.href = '/login.html';
+// });
 
 
 

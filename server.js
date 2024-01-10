@@ -146,19 +146,30 @@ io.on('connection', async (socket) => {
     await currentTabdata.save();
   }
 
+  
 
   if (previousTabId) {
     io.to(activeSessions[previousTabId]).emit('forceDisconnect');
+    console.log('disconnected from somewhere alse');
     delete Socket_Connected_Users_List[previousTabId];
     delete Players_List[previousTabId];
-    delete activeSessions[previousTabId];
+    // delete activeSessions[previousTabId];
     await TabData.deleteOne({ tabId: previousTabId });
     playersInCurrentRoom = Object.values(Players_List).filter(
       (otherPlayer) => otherPlayer.room === socket.room
     );
   };
+  
+  if (previousTabId) {
+    io.to(activeSessions[previousTabId]).emit('forceDisconnect');
+    // delete Socket_Connected_Users_List[previousTabId];
+    // delete Players_List[previousTabId];
+    // delete activeSessions[tabId];
+    await TabData.deleteOne({ tabId: previousTabId });
+    // console.log('previous tab id');
+  };
 
-  activeSessions[tabId] = socket.tabId;
+  activeSessions[tabId] = socket.id;
   Socket_Connected_Users_List[tabId] = socket;
   var player = Player(socket.room, socket.username, socket.tabId);
   Players_List[tabId] = player;
