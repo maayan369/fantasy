@@ -1,33 +1,36 @@
 <!DOCTYPE html>
 <html dir= "rtl" lang="ar">
-<head>
+<head> 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fantasy Land</title>
+    <!-- common css -->
     <link rel="stylesheet" href="/css/canvases.css" />
     <link rel="stylesheet" href="/css/characters.css" />
     <link rel="stylesheet" href="/css/topAndBottom.css" />
+    
+    <!-- specific css-->
 
+    <!-- common Js -->
     <script src="/js/requireLogin.js"></script>
+
+    <!-- specific Js -->
 </head>
 
 <body>
   <script src="/js/common.js"></script>
 
+
   <a href="theSea.html">
     <button type="button" id="movePage">ללכת לים</button>
   </a>
   
-
-
   <div id="container">
     <img id="backgroundImage" src="../media/palaceBackground.png" alt="background Image">
     <img id="groundImage" src="../media/palaceGround.png" alt="Ground Image">
     <div id="usersContainer"></div> 
     <div id="clickingContainer"></div>    
-   
   </div>
-
 
   <div class="chat-form-container">
     <form id="chat-form">
@@ -41,16 +44,17 @@
     </form>
   </div>
 
-
+  <!-- common Html -->
   <div id="topBarContainer"></div>
   <div id="forceDisconnectionContainer"></div>
 
-
+  <!-- common Js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.3.2/socket.io.js"></script>
   <script src="/js/socketCanvases.js"></script>   
   <script src="/js/logout.js"></script>
   <script src="/js/forceDisconnect.js"></script>
-
+  
+  <!-- specific Js -->
  
 </body>
 </html>

@@ -20,7 +20,7 @@ app.use(cookieParser());
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-
+  
 
 //Connect to mongodb
 mongoose.connect("mongodb://localhost:27017/FantasyDB")
@@ -160,14 +160,11 @@ io.on('connection', async (socket) => {
     );
   };
   
-  if (previousTabId) {
-    io.to(activeSessions[previousTabId]).emit('forceDisconnect');
-    // delete Socket_Connected_Users_List[previousTabId];
-    // delete Players_List[previousTabId];
-    // delete activeSessions[tabId];
-    await TabData.deleteOne({ tabId: previousTabId });
-    // console.log('previous tab id');
-  };
+  const currentUser = await getUserByUsername(socket.username);
+  socket.emit('userData', {
+    name: currentUser.username,
+    coins: currentUser.money,
+  });
 
   activeSessions[tabId] = socket.id;
   Socket_Connected_Users_List[tabId] = socket;
