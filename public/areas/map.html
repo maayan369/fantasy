@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html dir= "rtl" lang="ar">
+<head> 
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fantasy Land</title>
+    <!-- common css -->
+    <link rel="stylesheet" href="/css/topAndBottom.css" />
+
+    <!-- specific css-->
+    <link rel="stylesheet" href="/css/map.css" />
+
+
+    <!-- common Js -->
+    <script src="/js/requireLogin.js"></script>
+
+    <!-- specific Js -->
+</head>
+
+<body>
+  <script src="/js/common.js"></script>
+
+  <div id="container">
+    <div id="containerForImages">
+      <img id="backgroundImage" src="../media/map.png" alt="map Image">  
+      <a href="thePalace.html">
+        <div id="palaceImage"></div>
+      </a>
+    </div>
+  </div>
+
+
+  <!-- common Html -->
+  <div id="forceDisconnectionContainer"></div>
+
+  <!-- common Js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.3.2/socket.io.js"></script>
+  <script src="/js/socketCanvases.js"></script>   
+  <script src="/js/forceDisconnect.js"></script>
+
+  
+  <!-- specific Js -->
+  <script src="/js/map.js"></script>
+ 
+</body>
+</html>
