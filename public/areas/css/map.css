@@ -71,4 +71,34 @@ body {
   background-color: rgba(15, 64, 239, 0.3);
 
 }
+
+#doorSvg {
+  position: absolute;
+  margin: 0;
+  top: 40%;
+  left: 0%; 
+  z-index: 2;
+  width: 20%;
+  height: 20%;
+  clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%);
+  border: 1px solid orange;
+  background-color: orange;
+}
+
+#doorSvg:hover {
+  background-color: yellow;
+
+}
+
+.background-video {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 50%;
+  height: 100%;
+  opacity: 1;
+  pointer-events: none;
+  transition: opacity 0.5s ease;
+  z-index: 1000;
+}
   
