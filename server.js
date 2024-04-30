@@ -10,6 +10,7 @@ const app = express();
 const server = http.createServer(app);
 const io = socketio(server); 
 
+
 const { User, getUserByUsername, verifyPassword } = require('./utils/Users.js');
 
 const confirmationRouter = require('./routes/confirmationRoute.js')
@@ -388,6 +389,10 @@ app.use('/confirmation', confirmationRouter);
 
 
 
+const LOCAL_IP = '192.168.0.103';
 const PORT = process.env.PORT || 3000;
 
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+server.listen(PORT, LOCAL_IP, () => {
+  console.log(`Server running on ${LOCAL_IP}:${PORT}`);
+});
