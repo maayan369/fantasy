@@ -134,7 +134,7 @@ signupForm.addEventListener('submit', async function(event) {
   const password = document.getElementById('signupPassword').value;
   const id = generateUniqueId();
   const confirmationToken = generateUniqueToken();
-  const confirmationLink = `http://192.168.0.103:3000/confirmation/confirm-email/${confirmationToken}`;
+  const confirmationLink = `http://192.168.0.105:3000/confirmation/confirm-email/${confirmationToken}`;
 
   try {
     const response = await fetch('/signup', {

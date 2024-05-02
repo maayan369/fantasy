@@ -68,6 +68,7 @@ var Player = function(room, username, tabId) {
     speed: 3,
     message: '',
     zIndex: 0,
+    direction: 'faceDown',
   };
   
   self.updatePosition = function() {
@@ -101,6 +102,8 @@ setInterval(function() {
       username: player.username,
       message: player.message,
       zIndex: player.zIndex,
+      direction: player.direction,
+
     });
   }
   for (var tabId in Players_List) {
@@ -146,8 +149,6 @@ io.on('connection', async (socket) => {
     currentTabdata.isLoggedIn = true;
     await currentTabdata.save();
   }
-
-  
 
   if (previousTabId) {
     io.to(activeSessions[previousTabId]).emit('forceDisconnect');
@@ -263,6 +264,9 @@ io.on('connection', async (socket) => {
     }, 3000);
   });
 
+  socket.on('playerDirection', (direction) => {
+  player.direction = direction;
+});
 });
 
 ///////
@@ -389,10 +393,12 @@ app.use('/confirmation', confirmationRouter);
 
 
 
-const LOCAL_IP = '192.168.0.103';
+const LOCAL_IP = '192.168.0.105';
 const PORT = process.env.PORT || 3000;
 
 // server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// also change at signup and login js
+
 server.listen(PORT, LOCAL_IP, () => {
   console.log(`Server running on ${LOCAL_IP}:${PORT}`);
 });

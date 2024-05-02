@@ -1,27 +1,27 @@
-const video = document.querySelector('.background-video');
+// const video = document.querySelector('.background-video');
 
-let playingForward = true;
+// let playingForward = true;
 
-document.querySelector('#doorSvg').addEventListener('mouseover', function() {
-//   // video.currentTime = 0;
-//   video.playbackRate = 1;
-//   video.play();
+// document.querySelector('#doorSvg').addEventListener('mouseover', function() {
+// //   // video.currentTime = 0;
+// //   video.playbackRate = 1;
+// //   video.play();
+// // });
+//   if (playingForward) {
+//     video.play();
+//   } else {
+//     video.playbackRate = -1;
+//     video.play();
+//   }
 // });
-  if (playingForward) {
-    video.play();
-  } else {
-    video.playbackRate = -1;
-    video.play();
-  }
-});
 
 
 
-document.querySelector('#doorSvg').addEventListener('mouseout', function() {
-  video.playbackRate = -1;
-  playingForward = false;
+// document.querySelector('#doorSvg').addEventListener('mouseout', function() {
+//   video.playbackRate = -1;
+//   playingForward = false;
 
-});
+// });
 
 // const video = document.querySelector('.background-video');
 // let isPlaying = false;

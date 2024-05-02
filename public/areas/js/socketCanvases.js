@@ -38,6 +38,17 @@ let currentTempCanvasWidth = backgroundImage.width;
 let currentTempCanvasHeight = backgroundImage.height;
 
 
+// Preload character images
+const characterImages = {};
+const imageSources = ['faceDown.png', 'faceUp.png', 'faceLeft.png', 'faceRight.png', 'faceUpRight.png', 'faceRightDown.png', 'faceDownLeft.png', 'faceLeftUp.png'];
+
+imageSources.forEach((src) => {
+  const img = new Image();
+  img.src = `../media/${src}`;
+  characterImages[src] = img;
+});
+
+
 
 chatForm.addEventListener('submit', (e) => {
   e.preventDefault();
@@ -58,7 +69,6 @@ function isPixelTransparent(x, y) {
 
 
 
-
 socket.on('newPositions', (data) => {
   charactersData = data.filter(player => player.room === currentRoom);
   socket.emit('joinRoom', currentRoom);
@@ -68,8 +78,7 @@ socket.on('newPositions', (data) => {
 
 
 
-
-
+// Function to draw characters based on original canvas size
 // Function to draw characters based on original canvas size
 function drawCharacters() {
   usersContainer.innerHTML = '';
@@ -87,8 +96,10 @@ function drawCharacters() {
     userDiv.id = user.username;    
     usersContainer.appendChild(userDiv);
 
-    const characterImage = new Image();
-    characterImage.src = '../media/userCharacterCat.png';
+    // Move this line below where mouseDirection is set
+    // console.log(`../media/${user.direction}.png`);
+    
+    const characterImage = characterImages[user.direction + '.png'];
     characterImage.classList.add('characterImage');
     userDiv.appendChild(characterImage);
 
@@ -107,7 +118,7 @@ function drawCharacters() {
     const userHeight = userDiv.offsetHeight;
 
     const userLeft = xPos - userWidth / 2;
-    const userTop = yPos - userHeight / 1.2;
+    const userTop = yPos - userHeight / 1.7;
 
     // Set user position dynamically
     userDiv.style.left = userLeft + 'px';
@@ -144,7 +155,11 @@ window.addEventListener('load', function() {
   resizeCanvases();
 });
 
+
 window.addEventListener('resize', resizeCanvases);
+
+window.addEventListener('popstate', console.log('i should seperate the socket varible from here and refrsh the things to work here in popstate'));
+
 
 function findClickedUser(x, y) {
   const rect = groundImage.getBoundingClientRect();
@@ -192,6 +207,47 @@ clickingContainer.addEventListener('click', (event) => {
     
     drawCharacters();
     // console.log(usersContainer.innerHTML);
+  }
+});
+
+
+/////
+document.addEventListener('mousemove', (e) => {
+  const { clientX, clientY } = e;
+
+  for (let i = 0; i < charactersData.length; i++) {
+    const user = charactersData[i];
+    const userDiv = document.getElementById(user.username);
+    let direction;
+
+    const { top, left, width, height } = userDiv.getBoundingClientRect();
+
+    const x = clientX - (left + width / 2);
+    const y = clientY - (top + height / 2);
+
+    if (x > 50 && y > 50) {
+      direction = 'faceRightDown';
+    } else if (x > 50 && y < -50) {
+      direction = 'faceUpRight';
+    } else if (x < -50 && y < -50) {
+      direction = 'faceLeftUp';
+    } else if (x < -50 && y > 50) {
+      direction = 'faceDownLeft';
+    } else if (x < -50) {
+      direction = 'faceLeft';
+    } else if (x > 50) {
+      direction = 'faceRight';
+    } else if (y < -50) {
+      direction = 'faceUp';
+    } else if (y > 50) {
+      direction = 'faceDown';
+    } else {
+      direction = 'faceDown';
+    }
+
+    
+    // Emit the direction information to the server
+    socket.emit('playerDirection', direction );
   }
 });
 

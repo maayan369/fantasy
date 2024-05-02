@@ -18,8 +18,18 @@
 <body>
   <script src="/js/common.js"></script>
 
+  <button onclick=goBack()>Go Back</button>
+
+  <script>
+    function goBack() {
+      window.history.back();
+    }
+  </script>
+
   <h1 id="name">שם: </h1>
   <h1 id="coins">מטבעות: </h1>
+
+  
 
   <!-- common Html -->
   <div id="forceDisconnectionContainer"></div>
