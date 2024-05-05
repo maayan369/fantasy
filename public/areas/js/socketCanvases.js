@@ -37,17 +37,7 @@ let currentBackgroundHeight = backgroundImage.height;
 let currentTempCanvasWidth = backgroundImage.width;
 let currentTempCanvasHeight = backgroundImage.height;
 
-
-// Preload character images
-const characterImages = {};
-const imageSources = ['faceDown.png', 'faceUp.png', 'faceLeft.png', 'faceRight.png', 'faceUpRight.png', 'faceRightDown.png', 'faceDownLeft.png', 'faceLeftUp.png'];
-
-imageSources.forEach((src) => {
-  const img = new Image();
-  img.src = `../media/${src}`;
-  characterImages[src] = img;
-});
-
+let newDirection = 'faceDown';
 
 
 chatForm.addEventListener('submit', (e) => {
@@ -68,7 +58,6 @@ function isPixelTransparent(x, y) {
 }
 
 
-
 socket.on('newPositions', (data) => {
   charactersData = data.filter(player => player.room === currentRoom);
   socket.emit('joinRoom', currentRoom);
@@ -77,29 +66,27 @@ socket.on('newPositions', (data) => {
 });
 
 
-
-// Function to draw characters based on original canvas size
 // Function to draw characters based on original canvas size
 function drawCharacters() {
   usersContainer.innerHTML = '';
   const rect = groundImage.getBoundingClientRect();
 
   for (let i = 0; i < charactersData.length; i++) {
-
     const user = charactersData[i];
-
     const xPos = (user.x / originalBackgroundWidth) * currentBackgroundWidth + rect.left;
     const yPos = (user.y / originalBackgroundHeight) * currentBackgroundHeight + rect.top;
 
     const userDiv = document.createElement('div');
-    userDiv.classList.add('userCharacter');    
-    userDiv.id = user.username;    
+    userDiv.classList.add('userCharacter');
+    userDiv.id = user.username;
     usersContainer.appendChild(userDiv);
 
-    // Move this line below where mouseDirection is set
-    // console.log(`../media/${user.direction}.png`);
-    
-    const characterImage = characterImages[user.direction + '.png'];
+    const characterImage = new Image();
+    if(user.username === currentUsername){
+      characterImage.src = `../media/${newDirection}.png`;
+    } else {
+      characterImage.src = `../media/${user.direction}.png`;
+    };
     characterImage.classList.add('characterImage');
     userDiv.appendChild(characterImage);
 
@@ -108,22 +95,21 @@ function drawCharacters() {
     usernameText.textContent = user.username;
     userDiv.appendChild(usernameText);
 
-    userDiv.style.width = (currentBackgroundWidth / 12) +'px';
-    userDiv.style.height = (currentBackgroundWidth / 12) +'px';
+    userDiv.style.width = (currentBackgroundWidth / 12) + 'px';
+    userDiv.style.height = (currentBackgroundWidth / 12) + 'px';
     userDiv.style.zIndex = user.zIndex;
 
-    usernameText.style.fontSize = (currentBackgroundWidth / 60) +'px';
+    usernameText.style.fontSize = (currentBackgroundWidth / 70) + 'px';
 
     const userWidth = userDiv.offsetWidth;
     const userHeight = userDiv.offsetHeight;
 
     const userLeft = xPos - userWidth / 2;
-    const userTop = yPos - userHeight / 1.7;
+    const userTop = yPos - userHeight / 0.75;
 
     // Set user position dynamically
     userDiv.style.left = userLeft + 'px';
     userDiv.style.top = userTop + 'px';
-    // console.log(usersContainer.innerHTML);
 
     if (user.message !== '') {
       const messageDiv = document.createElement('div');
@@ -133,6 +119,7 @@ function drawCharacters() {
     }
   }
 }
+
 
 
 
@@ -203,6 +190,7 @@ clickingContainer.addEventListener('click', (event) => {
 
     if (!isTransparent) {
       socket.emit('clickPosition', { x: clickX, y: clickY });
+      socket.emit('playerDirection', newDirection);
     }
     
     drawCharacters();
@@ -211,51 +199,49 @@ clickingContainer.addEventListener('click', (event) => {
 });
 
 
-/////
+// /////
 document.addEventListener('mousemove', (e) => {
   const { clientX, clientY } = e;
 
-  for (let i = 0; i < charactersData.length; i++) {
-    const user = charactersData[i];
-    const userDiv = document.getElementById(user.username);
-    let direction;
+  const currentPlayer = charactersData.find(player => player.username === currentUsername);
+  if (!currentPlayer) return; // Exit if current user not found
 
-    const { top, left, width, height } = userDiv.getBoundingClientRect();
+  const { top, left, width, height } = document.getElementById(currentUsername).getBoundingClientRect();
 
-    const x = clientX - (left + width / 2);
-    const y = clientY - (top + height / 2);
+  const x = clientX - (left + width / 2);
+  const y = clientY - (top + height / 2);
 
-    if (x > 50 && y > 50) {
-      direction = 'faceRightDown';
-    } else if (x > 50 && y < -50) {
-      direction = 'faceUpRight';
-    } else if (x < -50 && y < -50) {
-      direction = 'faceLeftUp';
-    } else if (x < -50 && y > 50) {
-      direction = 'faceDownLeft';
-    } else if (x < -50) {
-      direction = 'faceLeft';
-    } else if (x > 50) {
-      direction = 'faceRight';
-    } else if (y < -50) {
-      direction = 'faceUp';
-    } else if (y > 50) {
-      direction = 'faceDown';
-    } else {
-      direction = 'faceDown';
-    }
-
-    
-    // Emit the direction information to the server
-    socket.emit('playerDirection', direction );
+  if (x > 50 && y > 50) {
+    newDirection = 'faceRightDown';
+  } else if (x > 50 && y < -50) {
+    newDirection = 'faceUpRight';
+  } else if (x < -50 && y < -50) {
+    newDirection = 'faceLeftUp';
+  } else if (x < -50 && y > 50) {
+    newDirection = 'faceDownLeft';
+  } else if (x < -50) {
+    newDirection = 'faceLeft';
+  } else if (x > 50) {
+    newDirection = 'faceRight';
+  } else if (y < -50) {
+    newDirection = 'faceUp';
+  } else {
+    newDirection = 'faceDown';
   }
+
+  // Update the character image locally in the DOM
+  const userCharacterDiv = document.getElementById(currentUsername);
+  const characterImage = userCharacterDiv.querySelector('.characterImage');
+  if (characterImage) {
+    characterImage.src = `../media/${newDirection}.png`;
+  }
+
+
 });
 
 
 
-
 //////
-
 
 socket.emit('initialize', currentTabId);
 

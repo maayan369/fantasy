@@ -11,6 +11,7 @@
   color: black;
   text-align: center;
   position: relative;
+  top: -5%;
   font-family: Arial, Helvetica, sans-serif;    
   cursor: default;
   width: 150%;
@@ -18,7 +19,7 @@
 
 .characterImage {
 
-  width: 100%;
+  width: 70%;
 }
 
 /* .message-container {
