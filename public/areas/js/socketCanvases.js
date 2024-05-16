@@ -105,7 +105,7 @@ function drawCharacters() {
     const userHeight = userDiv.offsetHeight;
 
     const userLeft = xPos - userWidth / 2;
-    const userTop = yPos - userHeight / 0.75;
+    const userTop = yPos - userHeight / 1.75;
 
     // Set user position dynamically
     userDiv.style.left = userLeft + 'px';
