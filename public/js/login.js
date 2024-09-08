@@ -1,5 +1,4 @@
-// const socket = io(); // Connects to the Socket.IO server
-
+// function for generate a random code
 function generateTabId() {
   return 'txxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
     const r = Math.random() * 16 | 0;
@@ -8,18 +7,17 @@ function generateTabId() {
   });
 }
 
-// Function to set the current tab ID
+// Function to set the current tab ID using session storage
 function setCurrentTabId(tabId) {
   sessionStorage.setItem('currentTabId', tabId);
 }
 
-
-// Function to set the current tab ID
+// Function to set the current user name using session storage
 function setCurrentUsername(username) {
   sessionStorage.setItem('currentUsername', username);
 }
 
-
+// function for setting form message
 function setFormMessage(formElement, type, message) {
     const messageElement = formElement.querySelector(".form__message")
 
@@ -64,7 +62,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setCurrentUsername(loginUsername);
 
 
-    const afterLoginLink = `http://192.168.0.103:3000/areas/thePalace.html`;
+    const afterLoginLink = `http://192.168.0.108:3000/areas/thePalace.html`;
 
 
     try {

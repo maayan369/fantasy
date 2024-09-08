@@ -10,7 +10,6 @@ const app = express();
 const server = http.createServer(app);
 const io = socketio(server); 
 
-
 const { User, getUserByUsername, verifyPassword } = require('./utils/Users.js');
 
 const confirmationRouter = require('./routes/confirmationRoute.js')
@@ -32,7 +31,7 @@ mongoose.connect("mongodb://localhost:27017/FantasyDB")
     console.error('error:', err);
 });
 
-
+//Saved information by login, tabData table
 const TabDataSchema = new mongoose.Schema({
   tabId: String,
   isLoggedIn: Boolean,
@@ -41,9 +40,10 @@ const TabDataSchema = new mongoose.Schema({
   loginTime: Date,
   previousTabId: String,
 });
-
 const TabData = mongoose.model('TabData', TabDataSchema);
 
+
+//Socket bla bla
 var Socket_Connected_Users_List = [];
 var Players_List = [];
 const activeSessions = [];
@@ -112,7 +112,6 @@ setInterval(function() {
   }
 }, 100 / 25);
 
-
 function getPlayerByUsername(username) {
   for (const tabId in Players_List) {
     if (Players_List[tabId].username === username) {
@@ -121,7 +120,6 @@ function getPlayerByUsername(username) {
   }
   return null;
 }
-
 
 io.on('connection', async (socket) => {
   const tabId = socket.handshake.query.tabId;
@@ -394,7 +392,7 @@ app.use('/confirmation', confirmationRouter);
 
 
 // const LOCAL_IP = '192.168.0.105';
-const LOCAL_IP = '192.168.0.103';
+const LOCAL_IP = '192.168.0.108';
 
 const PORT = process.env.PORT || 3000;
 

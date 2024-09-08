@@ -1,8 +1,7 @@
 const nodemailer = require('nodemailer');
 
-// Construct the full path to the HTML file
-// const html = path.join(__dirname, 'confirmEmail.html');
 
+//
 async function sendConfirmEmail(username, email, password, confirmationLink) {
   
     const transporter = nodemailer.createTransport({
