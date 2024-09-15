@@ -11,6 +11,7 @@ const server = http.createServer(app);
 const io = socketio(server); 
 
 const { User, getUserByUsername, verifyPassword } = require('./utils/Users.js');
+const { getRoomFromPath } = require('./utils/Rooms.js');
 
 const confirmationRouter = require('./routes/confirmationRoute.js')
 const { sendConfirmEmail } = require('./mailer/confirmEmail.js');
@@ -43,20 +44,19 @@ const TabDataSchema = new mongoose.Schema({
 const TabData = mongoose.model('TabData', TabDataSchema);
 
 
-//Socket bla bla
+
+//Socket
+//??
 var Socket_Connected_Users_List = [];
+// the list of the players with all the data from Player varible
 var Players_List = [];
+//??
 const activeSessions = [];
 var playersInCurrentRoom = {};
 
-function getRoomFromPath(url) {
-  const parts = url.split('/');
-  const fileName = parts[parts.length - 1];
-  const room = fileName.split('.')[0];
-  return room;
-}
 
 var Player = function(room, username, tabId) {
+  //information about the player saves in self
   var self = {
     room: room,
     x: 700,
@@ -71,6 +71,7 @@ var Player = function(room, username, tabId) {
     direction: 'faceDown',
   };
   
+  //the moving function that changes the player position
   self.updatePosition = function() {
     if (self.x !== self.targetX || self.y !== self.targetY) {
       var dx = self.targetX - self.x;
@@ -90,6 +91,7 @@ var Player = function(room, username, tabId) {
   return self;
 };
 
+//??
 setInterval(function() {
   var pack = [];
   for (var tabId in Players_List) {
@@ -112,6 +114,8 @@ setInterval(function() {
   }
 }, 100 / 25);
 
+
+// get the player from the Players_List array by its username (tabId = the unique id of players)
 function getPlayerByUsername(username) {
   for (const tabId in Players_List) {
     if (Players_List[tabId].username === username) {
@@ -121,11 +125,22 @@ function getPlayerByUsername(username) {
   return null;
 }
 
+// function when starting socket and other socket functions
 io.on('connection', async (socket) => {
+
   const tabId = socket.handshake.query.tabId;
-  const roomName = getRoomFromPath(socket.handshake.headers.referer);
+  const roomName = getRoomFromPath(socket.handshake.headers.referer); 
   socket.room = roomName;
-  socket.tabId = tabId ? tabId : null;
+
+  
+  if (tabId) {
+    socket.tabId = tabId;
+  } else {
+    console.log("No tabId sent during the connection");
+    res.status(400).send("Missing tabId");
+  };
+
+  //find the user connection data in mongoDb
   const currentTabdata = await TabData.findOne({ tabId: socket.tabId });
   const username = currentTabdata ? currentTabdata.currentUsername : null;
   socket.username = username;
@@ -150,7 +165,7 @@ io.on('connection', async (socket) => {
 
   if (previousTabId) {
     io.to(activeSessions[previousTabId]).emit('forceDisconnect');
-    console.log('disconnected from somewhere alse');
+    // console.log('disconnected from somewhere alse');
     delete Socket_Connected_Users_List[previousTabId];
     delete Players_List[previousTabId];
     // delete activeSessions[previousTabId];
@@ -160,6 +175,7 @@ io.on('connection', async (socket) => {
     );
   };
   
+
   const currentUser = await getUserByUsername(socket.username);
   socket.emit('userData', {
     name: currentUser.username,
@@ -188,6 +204,7 @@ io.on('connection', async (socket) => {
 
   function updateZIndexFunction(username, currentZIndex) {
     const currentPlayerInPlayersList = getPlayerByUsername(username);
+    currentPlayerInPlayersList.zIndex = currentZIndex;
     const currentPlayerZIndex = currentPlayerInPlayersList.zIndex;
 
     for (let i = 0; i < playersInCurrentRoom.length; i++) {
@@ -202,7 +219,6 @@ io.on('connection', async (socket) => {
         }
       }
     }
-    currentPlayerInPlayersList.zIndex = currentZIndex;
 
     playersInCurrentRoom = Object.values(Players_List).filter(
       (otherPlayer) => otherPlayer.room === socket.room
@@ -212,13 +228,39 @@ io.on('connection', async (socket) => {
   }
 
 
+  socket.on('clickPosition', (data) => {
+    updateZIndexFunction(socket.username, playersInCurrentRoom.length);
+
+    player.targetX = data.x;
+    player.targetY = data.y;
+  });
+  
+
+  let messageUpdateTimeout;
+
+  socket.on('chatMessage', (message) => {
+    player.message = message;
+  
+    clearTimeout(messageUpdateTimeout);
+    console.log("this is the players list:", Players_List);
+    // console.log("this is the 222222 list", Socket_Connected_Users_List);
+    // console.log("active session list:", activeSessions);
+    messageUpdateTimeout = setTimeout(() => {
+      player.message = '';
+    }, 3000);
+  });
+
+  socket.on('playerDirection', (direction) => {
+  player.direction = direction;
+
+
+  //
   socket.on('disconnect', async () => {
     // console.log('disconnected');
     updateZIndexFunction(socket.username, playersInCurrentRoom.length);
     delete Socket_Connected_Users_List[tabId];
     delete Players_List[tabId];
     delete activeSessions[tabId];
-
 
     if (currentTabdata) {
       try {
@@ -240,36 +282,12 @@ io.on('connection', async (socket) => {
       }
     }
   });
-  
-  
-
-  socket.on('clickPosition', (data) => {
-    updateZIndexFunction(socket.username, playersInCurrentRoom.length);
-
-    player.targetX = data.x;
-    player.targetY = data.y;
-  });
-  
-
-  let messageUpdateTimeout;
-
-  socket.on('chatMessage', (message) => {
-    player.message = message;
-  
-    clearTimeout(messageUpdateTimeout);
-    messageUpdateTimeout = setTimeout(() => {
-      player.message = '';
-    }, 3000);
-  });
-
-  socket.on('playerDirection', (direction) => {
-  player.direction = direction;
 });
 });
 
 ///////
 
-
+// a way to aproach js,media and css file despite the blockade (??that in another file..??)
 app.use('/js', express.static(path.join(__dirname, 'public', 'areas', 'js')));
 app.use('/media', express.static(path.join(__dirname, 'public', 'areas', 'media')));
 app.use('/css', express.static(path.join(__dirname, 'public', 'areas', 'css')));
@@ -391,14 +409,10 @@ app.use('/confirmation', confirmationRouter);
 
 
 
-// const LOCAL_IP = '192.168.0.105';
-const LOCAL_IP = '192.168.0.108';
-
+// running of the server:
+const LOCAL_IP = '192.168.0.108'; // also change at signup and login js, can i save a global varible?
 const PORT = process.env.PORT || 3000;
 
-//  server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-// also change at signup and login js
-
-server.listen(PORT, LOCAL_IP, () => {
-  console.log(`Server running on ${LOCAL_IP}:${PORT}`);
-});
+// local only server: server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// ip based server:
+server.listen(PORT, LOCAL_IP, () => { console.log(`Server running on ${LOCAL_IP}:${PORT}`); });

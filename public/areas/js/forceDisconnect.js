@@ -20,6 +20,6 @@ socket.on('forceDisconnect', () => {
 });
 
 socket.on('redirectLogin', () => {
-  console.log('Redirecting to login page...');
+  console.log('No tab data provided. Redirecting to login.');
   window.location.href = '/login.html';
 });
