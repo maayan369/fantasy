@@ -45,13 +45,15 @@ const TabData = mongoose.model('TabData', TabDataSchema);
 
 
 
-//Socket
-//??
+// ✰★✰★✰★✰★✰★✰  Socket  ✰★✰★✰★✰★✰★✰
+
+//storing the data about the socket object for each player
 var Socket_Connected_Users_List = [];
 // the list of the players with all the data from Player varible
 var Players_List = [];
-//??
+//container for mapping tabId values to socket.id values only
 const activeSessions = [];
+//
 var playersInCurrentRoom = {};
 
 
@@ -105,7 +107,6 @@ setInterval(function() {
       message: player.message,
       zIndex: player.zIndex,
       direction: player.direction,
-
     });
   }
   for (var tabId in Players_List) {
@@ -127,61 +128,59 @@ function getPlayerByUsername(username) {
 
 // function when starting socket and other socket functions
 io.on('connection', async (socket) => {
-
+  //define the tabID and roomName varibles
   const tabId = socket.handshake.query.tabId;
   const roomName = getRoomFromPath(socket.handshake.headers.referer); 
   socket.room = roomName;
-
-  
+  //condition check if there is tab id else send error
   if (tabId) {
     socket.tabId = tabId;
   } else {
     console.log("No tabId sent during the connection");
     res.status(400).send("Missing tabId");
   };
-
-  //find the user connection data in mongoDb
+  //find the user connection data in mongoDb TabData and save username and previousTabId varible
   const currentTabdata = await TabData.findOne({ tabId: socket.tabId });
   const username = currentTabdata ? currentTabdata.currentUsername : null;
   socket.username = username;
   const previousTabId = currentTabdata ? currentTabdata.previousTabId : null;
-
+  //things to prevent problems with login
   if (!currentTabdata) {
     console.log('No tab data provided. Redirecting to login.');
     socket.emit('redirectLogin'); 
     return;
   }
-
   if (!socket.username) {
     console.log('No username provided. Redirecting to login.');
     socket.emit('redirectLogin'); 
     return;
   }
-
+  //change isLoggedIn stat to true for the currentTabdata
   if (currentTabdata) {
     currentTabdata.isLoggedIn = true;
     await currentTabdata.save();
   }
-
+  //force disconnection to previousTabId when there is login twice to the same user
   if (previousTabId) {
     io.to(activeSessions[previousTabId]).emit('forceDisconnect');
-    // console.log('disconnected from somewhere alse');
+
     delete Socket_Connected_Users_List[previousTabId];
     delete Players_List[previousTabId];
-    // delete activeSessions[previousTabId];
+    delete activeSessions[previousTabId];
     await TabData.deleteOne({ tabId: previousTabId });
+
     playersInCurrentRoom = Object.values(Players_List).filter(
       (otherPlayer) => otherPlayer.room === socket.room
     );
   };
-  
-
+  //send userData to the self profile
   const currentUser = await getUserByUsername(socket.username);
   socket.emit('userData', {
     name: currentUser.username,
     coins: currentUser.money,
   });
-
+  
+  //
   activeSessions[tabId] = socket.id;
   Socket_Connected_Users_List[tabId] = socket;
   var player = Player(socket.room, socket.username, socket.tabId);
