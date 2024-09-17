@@ -44,18 +44,17 @@ const TabDataSchema = new mongoose.Schema({
 const TabData = mongoose.model('TabData', TabDataSchema);
 
 
+// ✰★✰★✰★✰★✰★✰★✰★✰  Socket  ✰★✰★✰★✰★✰★✰★✰★✰
 
-// ✰★✰★✰★✰★✰★✰  Socket  ✰★✰★✰★✰★✰★✰
 
 //storing the data about the socket object for each player
 var Socket_Connected_Users_List = [];
-// the list of the players with all the data from Player varible
+//the list of the players with all the data from Player varible
 var Players_List = [];
 //container for mapping tabId values to socket.id values only
 const activeSessions = [];
-//
-var playersInCurrentRoom = {};
-
+// seperate the player list to rooms according to the areas in the URL (in setInterval)
+var playersInCurrentRoom = [];
 
 var Player = function(room, username, tabId) {
   //information about the player saves in self
@@ -72,7 +71,6 @@ var Player = function(room, username, tabId) {
     zIndex: 0,
     direction: 'faceDown',
   };
-  
   //the moving function that changes the player position
   self.updatePosition = function() {
     if (self.x !== self.targetX || self.y !== self.targetY) {
@@ -93,7 +91,8 @@ var Player = function(room, username, tabId) {
   return self;
 };
 
-//??
+//Repeating function, it performes the updatePosition, takes the new information about the users and sends it.
+// also create the playersInCurrentRoom array
 setInterval(function() {
   var pack = [];
   for (var tabId in Players_List) {
@@ -112,9 +111,11 @@ setInterval(function() {
   for (var tabId in Players_List) {
     var socket = Socket_Connected_Users_List[tabId];
     socket.emit('newPositions', pack);
+    playersInCurrentRoom = Object.values(Players_List).filter(
+      (otherPlayer) => otherPlayer.room === socket.room
+    );
   }
 }, 100 / 25);
-
 
 // get the player from the Players_List array by its username (tabId = the unique id of players)
 function getPlayerByUsername(username) {
@@ -126,12 +127,15 @@ function getPlayerByUsername(username) {
   return null;
 }
 
+
 // function when starting socket and other socket functions
 io.on('connection', async (socket) => {
+
   //define the tabID and roomName varibles
   const tabId = socket.handshake.query.tabId;
   const roomName = getRoomFromPath(socket.handshake.headers.referer); 
   socket.room = roomName;
+
   //condition check if there is tab id else send error
   if (tabId) {
     socket.tabId = tabId;
@@ -139,11 +143,13 @@ io.on('connection', async (socket) => {
     console.log("No tabId sent during the connection");
     res.status(400).send("Missing tabId");
   };
+
   //find the user connection data in mongoDb TabData and save username and previousTabId varible
   const currentTabdata = await TabData.findOne({ tabId: socket.tabId });
   const username = currentTabdata ? currentTabdata.currentUsername : null;
   socket.username = username;
   const previousTabId = currentTabdata ? currentTabdata.previousTabId : null;
+
   //things to prevent problems with login
   if (!currentTabdata) {
     console.log('No tab data provided. Redirecting to login.');
@@ -155,108 +161,90 @@ io.on('connection', async (socket) => {
     socket.emit('redirectLogin'); 
     return;
   }
-  //change isLoggedIn stat to true for the currentTabdata
+
+  //change isLoggedIn stat to true for the currentTabdata in mongo
   if (currentTabdata) {
     currentTabdata.isLoggedIn = true;
     await currentTabdata.save();
   }
+
   //force disconnection to previousTabId when there is login twice to the same user
   if (previousTabId) {
     io.to(activeSessions[previousTabId]).emit('forceDisconnect');
-
     delete Socket_Connected_Users_List[previousTabId];
     delete Players_List[previousTabId];
     delete activeSessions[previousTabId];
     await TabData.deleteOne({ tabId: previousTabId });
-
-    playersInCurrentRoom = Object.values(Players_List).filter(
-      (otherPlayer) => otherPlayer.room === socket.room
-    );
   };
+
   //send userData to the self profile
   const currentUser = await getUserByUsername(socket.username);
   socket.emit('userData', {
     name: currentUser.username,
     coins: currentUser.money,
   });
-  
-  //
+
+  // create the arrays below
   activeSessions[tabId] = socket.id;
   Socket_Connected_Users_List[tabId] = socket;
+
+  //creating a new player object and adding it to the Players_List
   var player = Player(socket.room, socket.username, socket.tabId);
   Players_List[tabId] = player;
 
-  playersInCurrentRoom = Object.values(Players_List).filter(
-    (otherPlayer) => otherPlayer.room === socket.room
-  );
-
-  player.zIndex = playersInCurrentRoom.length;
-
-  playersInCurrentRoom = Object.values(Players_List).filter(
-    (otherPlayer) => otherPlayer.room === socket.room
-  );
-
+  //join room (area) in socket
   socket.on('joinRoom', (currentRoom) => {
     player.room = currentRoom;
     socket.join(currentRoom);
   });
 
-  function updateZIndexFunction(username, currentZIndex) {
-    const currentPlayerInPlayersList = getPlayerByUsername(username);
-    currentPlayerInPlayersList.zIndex = currentZIndex;
-    const currentPlayerZIndex = currentPlayerInPlayersList.zIndex;
-
-    for (let i = 0; i < playersInCurrentRoom.length; i++) {
-      if (playersInCurrentRoom[i].username !== username) {
-        const otherPlayerInTheRoom = playersInCurrentRoom[i];
-        const theOtherPlayerUsername = otherPlayerInTheRoom.username;
-        const theOtherPlayerInPlayersList = getPlayerByUsername(theOtherPlayerUsername);
-
-        if (theOtherPlayerInPlayersList && otherPlayerInTheRoom.zIndex > currentPlayerZIndex) {
-          // otherPlayerInTheRoom.zIndex -= 1;
-          theOtherPlayerInPlayersList.zIndex -= 1;
-        }
-      }
-    }
-
-    playersInCurrentRoom = Object.values(Players_List).filter(
-      (otherPlayer) => otherPlayer.room === socket.room
-    );
-
-    return;
-  }
-
-
+  //click Position changing the target and the z-index
   socket.on('clickPosition', (data) => {
-    updateZIndexFunction(socket.username, playersInCurrentRoom.length);
-
+    updateZIndexFunction;
+    console.log("updating position");
     player.targetX = data.x;
     player.targetY = data.y;
   });
-  
 
+  //finding player direction
+  socket.on('playerDirection', (direction) => {
+    player.direction = direction;
+  });
+
+  //update the message stat
   let messageUpdateTimeout;
-
   socket.on('chatMessage', (message) => {
     player.message = message;
   
     clearTimeout(messageUpdateTimeout);
-    console.log("this is the players list:", Players_List);
-    // console.log("this is the 222222 list", Socket_Connected_Users_List);
-    // console.log("active session list:", activeSessions);
     messageUpdateTimeout = setTimeout(() => {
       player.message = '';
     }, 3000);
   });
 
-  socket.on('playerDirection', (direction) => {
-  player.direction = direction;
+  //
+  function updateZIndexFunction() {
+    player.zIndex = playersInCurrentRoom.length+1
+    console.log(player.zIndex);
 
+    for (let i = 0; i < playersInCurrentRoom.length; i++) {
+      if (playersInCurrentRoom[i].username !== socket.username) {
+        const otherPlayerInTheRoom = playersInCurrentRoom[i];
+        const theOtherPlayerUsername = otherPlayerInTheRoom.username;
+        const theOtherPlayerInPlayersList = getPlayerByUsername(theOtherPlayerUsername);
+
+        if (otherPlayerInTheRoom.zIndex >= playersInCurrentRoom.length) {
+          theOtherPlayerInPlayersList.zIndex -= 1;
+        }
+      }
+    }
+    return;
+  };
 
   //
   socket.on('disconnect', async () => {
     // console.log('disconnected');
-    updateZIndexFunction(socket.username, playersInCurrentRoom.length);
+    updateZIndexFunction;
     delete Socket_Connected_Users_List[tabId];
     delete Players_List[tabId];
     delete activeSessions[tabId];
@@ -281,7 +269,6 @@ io.on('connection', async (socket) => {
       }
     }
   });
-});
 });
 
 ///////
