@@ -200,8 +200,7 @@ io.on('connection', async (socket) => {
 
   //click Position changing the target and the z-index
   socket.on('clickPosition', (data) => {
-    updateZIndexFunction;
-    console.log("updating position");
+    updateZIndexFunction(socket.username, playersInCurrentRoom.length);
     player.targetX = data.x;
     player.targetY = data.y;
   });
@@ -223,28 +222,27 @@ io.on('connection', async (socket) => {
   });
 
   //
-  function updateZIndexFunction() {
-    player.zIndex = playersInCurrentRoom.length+1
-    console.log(player.zIndex);
-
+  function updateZIndexFunction(username, currentZIndex) {
+    const currentPlayerInPlayersList = getPlayerByUsername(username);
+    const currentPlayerZIndex = currentPlayerInPlayersList.zIndex;
     for (let i = 0; i < playersInCurrentRoom.length; i++) {
-      if (playersInCurrentRoom[i].username !== socket.username) {
+      if (playersInCurrentRoom[i].username !== username) {
         const otherPlayerInTheRoom = playersInCurrentRoom[i];
         const theOtherPlayerUsername = otherPlayerInTheRoom.username;
         const theOtherPlayerInPlayersList = getPlayerByUsername(theOtherPlayerUsername);
-
-        if (otherPlayerInTheRoom.zIndex >= playersInCurrentRoom.length) {
+        if (theOtherPlayerInPlayersList && otherPlayerInTheRoom.zIndex > currentPlayerZIndex) {
           theOtherPlayerInPlayersList.zIndex -= 1;
         }
       }
     }
+    currentPlayerInPlayersList.zIndex = currentZIndex;
     return;
-  };
+  }
 
   //
   socket.on('disconnect', async () => {
     // console.log('disconnected');
-    updateZIndexFunction;
+    updateZIndexFunction(socket.username, playersInCurrentRoom.length);
     delete Socket_Connected_Users_List[tabId];
     delete Players_List[tabId];
     delete activeSessions[tabId];
