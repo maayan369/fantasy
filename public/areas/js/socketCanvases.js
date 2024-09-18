@@ -61,10 +61,15 @@ function updateOverlay() {
 
   // Calculate the new dimensions and position
   // אולי לשנות שהתמונה תהיה עם חלק שקוף בצדדים, שיהיה אפשר ללחוץ בצדדים אבל זה אל ימשיך ויצא מהקנבס.. 
-  clickingContainer.style.width = (imgWidth*0.92) + 'px';
-  clickingContainer.style.height = (imgHeight*0.92) + 'px';
-  clickingContainer.style.left = (imgLeft + imgWidth*0.04) + 'px';
+  clickingContainer.style.width = (imgWidth) + 'px';
+  clickingContainer.style.height = (imgHeight) + 'px';
+  clickingContainer.style.left = (imgLeft) + 'px';
   clickingContainer.style.top = (imgTop) + 'px';
+  
+  usersContainer.style.width = (imgWidth) + 'px';
+  usersContainer.style.height = (imgHeight) + 'px';
+  usersContainer.style.left = (imgLeft) + 'px';
+  usersContainer.style.top = (imgTop) + 'px';
 }
 
 // Update the overlay when the page loads and when the window is resized
@@ -128,12 +133,12 @@ socket.on('newPositions', (data) => {
 // Function to draw characters based on original canvas size
 function drawCharacters() {
   usersContainer.innerHTML = '';
-  const rect = groundImage.getBoundingClientRect();
+  // const rect = groundImage.getBoundingClientRect();
 
   for (let i = 0; i < charactersData.length; i++) {
     const user = charactersData[i];
-    const xPos = (user.x / originalBackgroundWidth) * currentBackgroundWidth + rect.left;
-    const yPos = (user.y / originalBackgroundHeight) * currentBackgroundHeight + rect.top;
+    const xPos = (user.x / originalBackgroundWidth) * currentBackgroundWidth;
+    const yPos = (user.y / originalBackgroundHeight) * currentBackgroundHeight;
 
     const userDiv = document.createElement('div');
     userDiv.classList.add('userCharacter');

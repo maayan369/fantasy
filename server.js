@@ -127,7 +127,6 @@ function getPlayerByUsername(username) {
   return null;
 }
 
-
 // function when starting socket and other socket functions
 io.on('connection', async (socket) => {
 
@@ -221,7 +220,7 @@ io.on('connection', async (socket) => {
     }, 3000);
   });
 
-  //
+  //arrange zIndexes function
   function updateZIndexFunction(username, currentZIndex) {
     const currentPlayerInPlayersList = getPlayerByUsername(username);
     const currentPlayerZIndex = currentPlayerInPlayersList.zIndex;
