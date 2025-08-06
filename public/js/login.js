@@ -62,7 +62,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setCurrentUsername(loginUsername);
 
 
-    const afterLoginLink = `http://192.168.0.108:3000/areas/thePalace.html`;
+    const afterLoginLink = `http://192.168.0.107:3000/areas/thePalace.html`;
 
 
     try {

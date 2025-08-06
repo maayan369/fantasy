@@ -250,7 +250,7 @@ clickingContainer.addEventListener('click', (event) => {
       }
 
       // Emit the adjusted target position
-      socket.emit('clickPosition', { x: targetX, y: targetY });
+      socket.emit('clickPosition', { x: targetX, y: 0.9*targetY });
       socket.emit('playerDirection', newDirection);
     }
 
@@ -266,40 +266,41 @@ document.addEventListener('mousemove', (e) => {
   const { clientX, clientY } = e;
 
   const currentPlayer = charactersData.find(player => player.username === currentUsername);
-  if (!currentPlayer) return; // Exit if current user not found
+  if (!currentPlayer) return;
 
   const { top, left, width, height } = document.getElementById(currentUsername).getBoundingClientRect();
 
   const x = clientX - (left + width / 2);
   const y = clientY - (top + height / 2);
 
-  if (x > 50 && y > 50) {
-    newDirection = 'faceRightDown';
-  } else if (x > 50 && y < -50) {
-    newDirection = 'faceUpRight';
-  } else if (x < -50 && y < -50) {
-    newDirection = 'faceLeftUp';
-  } else if (x < -50 && y > 50) {
-    newDirection = 'faceDownLeft';
-  } else if (x < -50) {
-    newDirection = 'faceLeft';
-  } else if (x > 50) {
+  const angle = Math.atan2(y, x); // מחזיר ערך בין -π ל+π
+
+  // נחלק את המעגל ל־8 אזורים
+  if (angle >= -Math.PI / 8 && angle < Math.PI / 8) {
     newDirection = 'faceRight';
-  } else if (y < -50) {
+  } else if (angle >= Math.PI / 8 && angle < 3 * Math.PI / 8) {
+    newDirection = 'faceDownRight';
+  } else if (angle >= 3 * Math.PI / 8 && angle < 5 * Math.PI / 8) {
+    newDirection = 'faceDown';
+  } else if (angle >= 5 * Math.PI / 8 && angle < 7 * Math.PI / 8) {
+    newDirection = 'faceDownLeft';
+  } else if (angle >= 7 * Math.PI / 8 || angle < -7 * Math.PI / 8) {
+    newDirection = 'faceLeft';
+  } else if (angle >= -7 * Math.PI / 8 && angle < -5 * Math.PI / 8) {
+    newDirection = 'faceUpLeft';
+  } else if (angle >= -5 * Math.PI / 8 && angle < -3 * Math.PI / 8) {
     newDirection = 'faceUp';
   } else {
-    newDirection = 'faceDown';
+    newDirection = 'faceUpRight';
   }
 
-  // Update the character image locally in the DOM
   const userCharacterDiv = document.getElementById(currentUsername);
   const characterImage = userCharacterDiv.querySelector('.characterImage');
   if (characterImage) {
     characterImage.src = `../media/${newDirection}.png`;
   }
-
-
 });
+
 
 
 //////

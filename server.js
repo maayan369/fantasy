@@ -393,7 +393,7 @@ app.use('/confirmation', confirmationRouter);
 
 
 // running of the server:
-const LOCAL_IP = '192.168.0.108'; // also change at signup and login js, can i save a global varible?
+const LOCAL_IP = '192.168.0.107'; // also change at signup and login js, can i save a global varible?
 const PORT = process.env.PORT || 3000;
 
 // local only server: server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
