@@ -122,6 +122,7 @@ function isPixelTransparent(x, y) {
 }
 
 
+
 //??
 socket.on('newPositions', (data) => {
   charactersData = data.filter(player => player.room === currentRoom);
@@ -206,6 +207,8 @@ function findClickedUser(x, y) {
 }
 
 
+
+
 clickingContainer.addEventListener('click', (event) => {
   const rect = groundImage.getBoundingClientRect();
   const x = event.clientX - rect.left;
@@ -250,6 +253,7 @@ clickingContainer.addEventListener('click', (event) => {
       }
 
       // Emit the adjusted target position
+      
       socket.emit('clickPosition', { x: targetX, y: 0.9*targetY });
       socket.emit('playerDirection', newDirection);
     }

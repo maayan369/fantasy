@@ -61,3 +61,12 @@
   font-size: 12px;
   white-space: nowrap;
 }
+
+/* .walking {
+  animation: walk-bounce 0.3s infinite;
+}
+
+@keyframes walk-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); } /* תנועה קלה למעלה
+} */

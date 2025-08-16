@@ -70,10 +70,12 @@ var Player = function(room, username, tabId) {
     message: '',
     zIndex: 0,
     direction: 'faceDown',
+    // isWalking: false
   };
   //the moving function that changes the player position
   self.updatePosition = function() {
     if (self.x !== self.targetX || self.y !== self.targetY) {
+      // self.isWalking = true;
       var dx = self.targetX - self.x;
       var dy = self.targetY - self.y;
       var distance = Math.sqrt(dx * dx + dy * dy);
@@ -86,7 +88,10 @@ var Player = function(room, username, tabId) {
         self.x = self.targetX;
         self.y = self.targetY;
       }
-    }
+    } 
+    // else {
+    //   self.isWalking = false;
+    // }
   };
   return self;
 };
