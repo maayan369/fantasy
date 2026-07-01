@@ -66,10 +66,10 @@ var Player = function(room, username, tabId) {
     username: username,
     targetX: 700,
     targetY: 700,
-    speed: 3,
+    speed: 2,
     message: '',
     zIndex: 0,
-    direction: 'faceDown',
+    direction: 'BodyForward',
     // isWalking: false
   };
   //the moving function that changes the player position
@@ -398,8 +398,11 @@ app.use('/confirmation', confirmationRouter);
 
 
 // running of the server:
-const LOCAL_IP = '192.168.0.107'; // also change at signup and login js, can i save a global varible?
+const LOCAL_IP = '192.168.0.104'; // also change at signup and login js, can i save a global varible?
 const PORT = process.env.PORT || 3000;
+
+
+
 
 // local only server: server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 // ip based server:

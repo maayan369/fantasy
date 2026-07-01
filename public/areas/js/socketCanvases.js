@@ -4,12 +4,51 @@ const clickingContainer = document.getElementById('clickingContainer');
 const backgroundImage = document.getElementById('backgroundImage');
 const groundImage = document.getElementById('groundImage');
 
+// Preload the single sprite sheet instead of a separate image per direction/frame
+const bodySprite = new Image();
+bodySprite.src = '../media/body.png';
+
+// The sprite sheet is a grid of 9 columns x 3 rows, each cell 250x300.
+const SPRITE_COLS = 9;
+const SPRITE_ROWS = 3;
+
+// Column index (0 = leftmost in the image) for each direction name
+const DIRECTION_COLUMNS = {
+  BodyForwardLeft: 0,
+  BodyLeft: 1,
+  BodyBackLeft: 2,
+  BodyFullBackLeft: 3,
+  BodyFullBackRight: 4,
+  BodyBackRight: 5,
+  BodyRight: 6,
+  BodyForwardRight: 7,
+  BodyForward: 8,
+};
+
+// פונקציה מעודכנת שמחשבת את המיקום בתמונה לפי מצב ההליכה
+function getSpritePosition(direction, walkFrameIndex, isMoving) {
+  const col = DIRECTION_COLUMNS[direction] ?? DIRECTION_COLUMNS.BodyForward;
+  let row = 0;
+
+  // לוגיקת האנימציה: 0=עמידה, 1=הליכה 1, 2=עמידה, 3=הליכה 2
+  if (isMoving) {
+    if (walkFrameIndex === 1) {
+      row = 1; // הליכה 1 (שורה שנייה)
+    } else if (walkFrameIndex === 3) {
+      row = 2; // הליכה 2 (שורה שלישית)
+    }
+    // במצבים 0 ו-2, ה-row נשאר 0 (עמידה)
+  }
+
+  const xPercent = (col / (SPRITE_COLS - 1)) * 100;
+  const yPercent = (row / (SPRITE_ROWS - 1)) * 100;
+  return `${xPercent}% ${yPercent}%`;
+}
+
 //??
 const tempCanvas = document.createElement('canvas');
 const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
 
-//function that take the page name from the URL (after the last / and before the .) + save it as currentRoom
-//I created this in utils/Rooms.js.. i should see if i can take the current Room from there or from the socket in the srerver
 function getRoomFromPath(url) {
   const parts = url.split('/');
   const fileName = parts[parts.length - 1];
@@ -18,17 +57,13 @@ function getRoomFromPath(url) {
 }
 const currentRoom = getRoomFromPath(window.location.pathname);
 
-// connect to socket + sending the tabid info so the server will know which player is the socket connection for (?)
 const socket = io({ query: { tabId: currentTabId } });
-// something for cancel the warning
-// socket.setMaxListeners(20);
 
 // Get all the chat part from the html
 const sendButton = document.getElementById('send-button');
 const chatForm = document.getElementById('chat-form');
 const messageInput = document.getElementById('msgInput');
 
-//??
 let charactersData = [];
 
 // Original canvas dimensions ??
@@ -43,24 +78,29 @@ let currentBackgroundHeight = backgroundImage.height;
 let currentTempCanvasWidth = backgroundImage.width;
 let currentTempCanvasHeight = backgroundImage.height;
 
-let newDirection = 'faceDown';
+let newDirection = 'BodyForward';
 
+// Movement & Animation states
+let isMoving = false;
+let targetMovePosition = null;
+let walkFrame = 0;
 
+// Track moving states for ALL users
+let previousPositions = {};
+let userMovingStates = {};
 
-/// new 10-9
+// *** שינוי מרכזי: משתנים חדשים לניהול זמן האנימציה ***
+let lastAnimationTime = 0;
+const ANIMATION_INTERVAL = 130; // 130 מילישניות בין כל פריים הליכה
+
 function updateOverlay() {
-  // Get the size and position of the image
   const imgRect = backgroundImage.getBoundingClientRect();
 
-  // Calculate the new size and position for the div
-  // const offset = 35; // 10vw and 10vh
   const imgWidth = imgRect.width;
   const imgHeight = imgRect.height;
   const imgLeft = imgRect.left;
   const imgTop = imgRect.top;
 
-  // Calculate the new dimensions and position
-  // אולי לשנות שהתמונה תהיה עם חלק שקוף בצדדים, שיהיה אפשר ללחוץ בצדדים אבל זה אל ימשיך ויצא מהקנבס.. 
   clickingContainer.style.width = (imgWidth) + 'px';
   clickingContainer.style.height = (imgHeight) + 'px';
   clickingContainer.style.left = (imgLeft) + 'px';
@@ -72,10 +112,8 @@ function updateOverlay() {
   usersContainer.style.top = (imgTop) + 'px';
 }
 
-// Update the overlay when the page loads and when the window is resized
 window.addEventListener('load', updateOverlay);
 window.addEventListener('resize', updateOverlay);
-
 
 function resizeCanvases() {
   currentBackgroundWidth = backgroundImage.width;
@@ -94,16 +132,10 @@ window.addEventListener('load', function() {
   resizeCanvases();
 });
 
-
 window.addEventListener('resize', resizeCanvases);
 
 window.addEventListener('popstate', console.log('i should seperate the socket varible from here and refrsh the things to work here in popstate'));
 
-
-
-
-//submit a message, from the chat to the socket
-//(should i move it from socketCanvases? its related to the drawing of the characters tho..)
 chatForm.addEventListener('submit', (e) => {
   e.preventDefault();
   const message = messageInput.value.trim();
@@ -113,79 +145,149 @@ chatForm.addEventListener('submit', (e) => {
   }
 });
 
-
-// function that check "isPixelTransparent" on the tempCtx (??check more about this ctx)
 function isPixelTransparent(x, y) {
   const pixelData = tempCtx.getImageData(x, y, 1, 1).data;
   const alpha = pixelData[3]; 
   return alpha === 0; 
 }
 
-
-
-//??
 socket.on('newPositions', (data) => {
-  charactersData = data.filter(player => player.room === currentRoom);
+  const newCharactersData = data.filter(player => player.room === currentRoom);
+  
+  newCharactersData.forEach(player => {
+    const prevPos = previousPositions[player.username];
+    if (prevPos) {
+      const dist = Math.hypot(player.x - prevPos.x, player.y - prevPos.y);
+      userMovingStates[player.username] = dist > 0.5;
+    } else {
+      userMovingStates[player.username] = false;
+    }
+    previousPositions[player.username] = { x: player.x, y: player.y };
+  });
+
+  charactersData = newCharactersData;
+  
+  if (isMoving && targetMovePosition) {
+    const currentPlayer = charactersData.find(player => player.username === currentUsername);
+    if (currentPlayer) {
+      const dist = Math.hypot(currentPlayer.x - targetMovePosition.x, currentPlayer.y - targetMovePosition.y);
+      if (dist < 15) { 
+        isMoving = false;
+        targetMovePosition = null;
+      }
+    }
+  }
+
   socket.emit('joinRoom', currentRoom);
-  drawCharacters();
 });
 
+// *** שינוי מרכזי: לולאת האנימציה הראשית (Game Loop) ***
+function gameLoop(timestamp) {
+  // בודקים אם עבר מספיק זמן מאז הפעם האחרונה ששינינו פריים הליכה (ANIMATION_INTERVAL)
+  if (timestamp - lastAnimationTime >= ANIMATION_INTERVAL) {
+      walkFrame = (walkFrame + 1) % 4; // מעדכן את הפריים (0, 1, 2, 3)
+      lastAnimationTime = timestamp; // מאפס את הטיימר
+  }
 
-// Function to draw characters based on original canvas size
+  // מציירים את כולם מחדש בכל פריים, עם המיקום והפריים המעודכנים ביותר
+  drawCharacters();
+
+  // קורא לפונקציה הזו שוב ושוב בסינכרון מושלם עם קצב הריענון של המסך
+  requestAnimationFrame(gameLoop);
+}
+
+// מתחילים את הלולאה כשמסיימים לטעון את העמוד
+requestAnimationFrame(gameLoop);
+
+
 function drawCharacters() {
-  usersContainer.innerHTML = '';
-  // const rect = groundImage.getBoundingClientRect();
+  const activeUsernames = new Set();
 
   for (let i = 0; i < charactersData.length; i++) {
     const user = charactersData[i];
+    activeUsernames.add(user.username);
+    
+    // קפיצה ישירה למיקום האמיתי ללא החלקה כלל
     const xPos = (user.x / originalBackgroundWidth) * currentBackgroundWidth;
     const yPos = (user.y / originalBackgroundHeight) * currentBackgroundHeight;
 
-    const userDiv = document.createElement('div');
-    userDiv.classList.add('userCharacter');
-    userDiv.id = user.username;
-    usersContainer.appendChild(userDiv);
+    // מיחזור אלמנטים (לא יוצרים מחדש אם הם קיימים)
+    let userDiv = document.getElementById(user.username);
+    
+    if (!userDiv) {
+      userDiv = document.createElement('div');
+      userDiv.classList.add('userCharacter');
+      userDiv.id = user.username;
+      
+      const characterImage = document.createElement('div');
+      characterImage.classList.add('characterImage');
+      userDiv.appendChild(characterImage);
 
-    const characterImage = new Image();
-    if(user.username === currentUsername){
-      characterImage.src = `../media/${newDirection}.png`;
-    } else {
-      characterImage.src = `../media/${user.direction}.png`;
-    };
-    characterImage.classList.add('characterImage');
-    userDiv.appendChild(characterImage);
+      const usernameText = document.createElement('span');
+      usernameText.classList.add('usernameText');
+      usernameText.textContent = user.username;
+      userDiv.appendChild(usernameText);
+      
+      const messageDiv = document.createElement('div');
+      messageDiv.classList.add('messageText');
+      messageDiv.style.display = 'none'; // מוסתר כברירת מחדל
+      userDiv.appendChild(messageDiv);
 
-    const usernameText = document.createElement('span');
-    usernameText.classList.add('usernameText');
-    usernameText.textContent = user.username;
-    userDiv.appendChild(usernameText);
+      usersContainer.appendChild(userDiv);
+    }
 
-    userDiv.style.width = (currentBackgroundWidth / 12) + 'px';
-    userDiv.style.height = (currentBackgroundWidth / 12) + 'px';
+    const currentDir = (user.username === currentUsername) ? newDirection : user.direction;
+    const isUserMoving = userMovingStates[user.username] || false;
+    
+    const characterImage = userDiv.querySelector('.characterImage');
+    characterImage.style.backgroundPosition = getSpritePosition(currentDir, walkFrame, isUserMoving);
+
+    // --- הוספת אפקט ה"קפיצה" (Bounce) בהליכה ---
+    let bounceOffset = 0;
+    if (isUserMoving) {
+        // בפריימים 1 ו-3 (פריימי ההליכה עצמם), הדמות "קופצת" קצת למעלה
+        if (walkFrame === 1 || walkFrame === 3) {
+            bounceOffset = -0.5; // הוקטן ל -0.5 כדי שיהיה סופר עדין לכולם
+        }
+    }
+    // החלת הטרנספורמציה
+    characterImage.style.transform = `translateY(${bounceOffset}px)`;
+    // -------------------------------------------
+
+    // עדכון גודל ומיקום מבלי לקרוא ל-offsetWidth היקר לביצועים
+    const charSize = currentBackgroundWidth / 8;
+    userDiv.style.width = charSize + 'px';
+    userDiv.style.height = charSize + 'px';
     userDiv.style.zIndex = user.zIndex;
 
+    const usernameText = userDiv.querySelector('.usernameText');
     usernameText.style.fontSize = (currentBackgroundWidth / 70) + 'px';
 
-    const userWidth = userDiv.offsetWidth;
-    const userHeight = userDiv.offsetHeight;
+    const userLeft = xPos - charSize / 2;
+    const userTop = yPos - charSize / 1.75;
 
-    const userLeft = xPos - userWidth / 2;
-    const userTop = yPos - userHeight / 1.75;
-
-    // Set user position dynamically
     userDiv.style.left = userLeft + 'px';
     userDiv.style.top = userTop + 'px';
 
-    if (user.message !== '') {
-      const messageDiv = document.createElement('div');
-      messageDiv.classList.add('messageText');
-      userDiv.appendChild(messageDiv);
-      messageDiv.textContent = user.message || '';
+    // עדכון הודעת צ'אט
+    const messageDiv = userDiv.querySelector('.messageText');
+    if (user.message && user.message !== '') {
+      messageDiv.textContent = user.message;
+      messageDiv.style.display = 'block';
+    } else {
+      messageDiv.style.display = 'none';
     }
   }
+
+  // מחיקת שחקנים שהתנתקו (ללא שאריות מנגנון ההחלקה)
+  Array.from(usersContainer.children).forEach(child => {
+    if (!activeUsernames.has(child.id)) {
+      child.remove();
+      delete previousPositions[child.id];
+      delete userMovingStates[child.id];
+    }
+  });
 }
-
-
 
 function findClickedUser(x, y) {
   const rect = groundImage.getBoundingClientRect();
@@ -206,27 +308,19 @@ function findClickedUser(x, y) {
   return null;
 }
 
-
-
-
 clickingContainer.addEventListener('click', (event) => {
   const rect = groundImage.getBoundingClientRect();
   const x = event.clientX - rect.left;
   const y = event.clientY - rect.top;
 
-  // Convert click coordinates to original background size
   const clickX = (x / currentBackgroundWidth) * originalBackgroundWidth;
   const clickY = (y / currentBackgroundHeight) * originalBackgroundHeight;
 
-  // Find the clicked user, if any
   const clickedUser = findClickedUser(x, y);
 
   if (clickedUser && clickedUser.username !== currentUsername) {
     console.log(clickedUser.username);
-    // Perform actions for the clicked user (like opening their profile)
-    // openUserProfilePopup(clickedUser);
   } else {
-    // Calculate the direction of movement
     let targetX = clickX;
     let targetY = clickY;
     const currentPlayer = charactersData.find(player => player.username === currentUsername);
@@ -234,83 +328,90 @@ clickingContainer.addEventListener('click', (event) => {
     if (currentPlayer) {
       const currentX = currentPlayer.x;
       const currentY = currentPlayer.y;
-      let angle = Math.atan2(targetY - currentY, targetX - currentX); // Direction of click
+      let angle = Math.atan2(targetY - currentY, targetX - currentX);
 
-      // Adjust the target coordinates while checking for transparency
+      if (angle >= -Math.PI / 8 && angle < Math.PI / 8) {
+        newDirection = 'BodyRight';
+      } else if (angle >= Math.PI / 8 && angle < 3 * Math.PI / 8) {
+        newDirection = 'BodyForwardRight';
+      } else if (angle >= 3 * Math.PI / 8 && angle < 5 * Math.PI / 8) {
+        newDirection = 'BodyForward';
+      } else if (angle >= 5 * Math.PI / 8 && angle < 7 * Math.PI / 8) {
+        newDirection = 'BodyForwardLeft';
+      } else if (angle >= 7 * Math.PI / 8 || angle < -7 * Math.PI / 8) {
+        newDirection = 'BodyLeft';
+      } else if (angle >= -7 * Math.PI / 8 && angle < -5 * Math.PI / 8) {
+        newDirection = 'BodyBackLeft';
+      } else if (angle >= -5 * Math.PI / 8 && angle < -3 * Math.PI / 8) {
+        newDirection = 'BodyFullBackLeft'; 
+      } else {
+        newDirection = 'BodyFullBackRight';
+      }
+
       while (isPixelTransparent(x, y)) {
-        // Move the target point backward along the angle until a non-transparent point is found
         targetX -= Math.cos(angle);
         targetY -= Math.sin(angle);
 
-        // Convert adjusted coordinates to canvas coordinates
         const adjustedX = (targetX / originalBackgroundWidth) * currentBackgroundWidth;
         const adjustedY = (targetY / originalBackgroundHeight) * currentBackgroundHeight;
 
-        // Check if the adjusted position is still transparent
         if (!isPixelTransparent(adjustedX, adjustedY)) {
           break;
         }
       }
 
-      // Emit the adjusted target position
-      
       socket.emit('clickPosition', { x: targetX, y: 0.9*targetY });
       socket.emit('playerDirection', newDirection);
+      
+      isMoving = true;
+      targetMovePosition = { x: targetX, y: 0.9 * targetY };
     }
 
     drawCharacters();
-    // console.log(usersContainer.innerHTML);
   }
 });
 
-
-
-// /////
 document.addEventListener('mousemove', (e) => {
+  if (isMoving) return; 
+
   const { clientX, clientY } = e;
 
   const currentPlayer = charactersData.find(player => player.username === currentUsername);
   if (!currentPlayer) return;
 
-  const { top, left, width, height } = document.getElementById(currentUsername).getBoundingClientRect();
+  const userCharacterDiv = document.getElementById(currentUsername);
+  if (!userCharacterDiv) return;
+
+  const { top, left, width, height } = userCharacterDiv.getBoundingClientRect();
 
   const x = clientX - (left + width / 2);
   const y = clientY - (top + height / 2);
 
-  const angle = Math.atan2(y, x); // מחזיר ערך בין -π ל+π
+  const angle = Math.atan2(y, x);
 
-  // נחלק את המעגל ל־8 אזורים
   if (angle >= -Math.PI / 8 && angle < Math.PI / 8) {
-    newDirection = 'faceRight';
+    newDirection = 'BodyRight';
   } else if (angle >= Math.PI / 8 && angle < 3 * Math.PI / 8) {
-    newDirection = 'faceDownRight';
+    newDirection = 'BodyForwardRight';
   } else if (angle >= 3 * Math.PI / 8 && angle < 5 * Math.PI / 8) {
-    newDirection = 'faceDown';
+    newDirection = 'BodyForward';
   } else if (angle >= 5 * Math.PI / 8 && angle < 7 * Math.PI / 8) {
-    newDirection = 'faceDownLeft';
+    newDirection = 'BodyForwardLeft';
   } else if (angle >= 7 * Math.PI / 8 || angle < -7 * Math.PI / 8) {
-    newDirection = 'faceLeft';
+    newDirection = 'BodyLeft';
   } else if (angle >= -7 * Math.PI / 8 && angle < -5 * Math.PI / 8) {
-    newDirection = 'faceUpLeft';
+    newDirection = 'BodyBackLeft';
   } else if (angle >= -5 * Math.PI / 8 && angle < -3 * Math.PI / 8) {
-    newDirection = 'faceUp';
+    newDirection = 'BodyFullBackLeft'; 
   } else {
-    newDirection = 'faceUpRight';
+    newDirection = 'BodyFullBackRight';
   }
 
-  const userCharacterDiv = document.getElementById(currentUsername);
   const characterImage = userCharacterDiv.querySelector('.characterImage');
   if (characterImage) {
-    characterImage.src = `../media/${newDirection}.png`;
+    // השארנו את ה-walkFrame על 0 כי במעבר עכבר הדמות לא בתנועה ממשית
+    characterImage.style.backgroundPosition = getSpritePosition(newDirection, 0, false);
   }
 });
 
-
-
-//////
-
 socket.emit('initialize', currentTabId);
-
-
-
-
