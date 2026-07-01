@@ -6,6 +6,16 @@ const groundImage = document.getElementById('groundImage');
 
 // Preload the single sprite sheet instead of a separate image per direction/frame
 const bodySprite = new Image();
+
+// יצירת קנבס נסתר כדי שנוכל לקרוא את הפיקסלים של הדמויות לטובת לחיצות (Pixel-Perfect)
+const spriteCanvas = document.createElement('canvas');
+spriteCanvas.width = 2250;
+spriteCanvas.height = 900;
+const spriteCtx = spriteCanvas.getContext('2d', { willReadFrequently: true });
+
+bodySprite.onload = () => {
+  spriteCtx.drawImage(bodySprite, 0, 0);
+};
 bodySprite.src = '../media/body.png';
 
 // The sprite sheet is a grid of 9 columns x 3 rows, each cell 250x300.
@@ -43,6 +53,33 @@ function getSpritePosition(direction, walkFrameIndex, isMoving) {
   const xPercent = (col / (SPRITE_COLS - 1)) * 100;
   const yPercent = (row / (SPRITE_ROWS - 1)) * 100;
   return `${xPercent}% ${yPercent}%`;
+}
+
+// פונקציה חדשה: בודקת האם הפיקסל הספציפי שעליו לחצנו בשחקן הוא שקוף
+function isCharacterPixelTransparent(user, clickRelativeX, clickRelativeY, elementWidth, elementHeight) {
+  const col = DIRECTION_COLUMNS[user.direction] ?? DIRECTION_COLUMNS.BodyForward;
+  let row = 0;
+  
+  const isUserMoving = userMovingStates[user.username] || false;
+  if (isUserMoving) {
+    if (walkFrame === 1) row = 1;
+    else if (walkFrame === 3) row = 2;
+  }
+
+  // ממירים את נקודת הלחיצה ממידות המסך היחסיות למידות המקוריות של הפריים בגיליון (250x300)
+  const pixelX = (clickRelativeX / elementWidth) * 250;
+  const pixelY = (clickRelativeY / elementHeight) * 300;
+
+  // המיקום המוחלט בקנבס הנסתר הענק
+  const sheetX = col * 250 + pixelX;
+  const sheetY = row * 300 + pixelY;
+
+  // הגנה מחריגה מגבולות התמונה
+  if (sheetX < 0 || sheetX >= 2250 || sheetY < 0 || sheetY >= 900) return true;
+
+  // שולפים את הפיקסל הספציפי. ערוץ ה-alpha (האינדקס הרביעי) אומר לנו אם זה שקוף
+  const pixelData = spriteCtx.getImageData(Math.floor(sheetX), Math.floor(sheetY), 1, 1).data;
+  return pixelData[3] === 0; // אם 0 - שקוף לחלוטין
 }
 
 //??
@@ -254,17 +291,18 @@ function drawCharacters() {
     characterImage.style.transform = `translateY(${bounceOffset}px)`;
     // -------------------------------------------
 
-    // עדכון גודל ומיקום מבלי לקרוא ל-offsetWidth היקר לביצועים
-    const charSize = currentBackgroundWidth / 8;
+    // עדכון גודל ומיקום: עכשיו מתחשבים בפרופורציות האמיתיות של התמונה (250x300)
+    const charSize = currentBackgroundWidth / 8; // רוחב
     userDiv.style.width = charSize + 'px';
-    userDiv.style.height = charSize + 'px';
+    userDiv.style.height = (charSize * 1.2) + 'px'; // הגובה הוא פי 1.2 מהרוחב כדי להכיל את כל הציור
     userDiv.style.zIndex = user.zIndex;
 
     const usernameText = userDiv.querySelector('.usernameText');
     usernameText.style.fontSize = (currentBackgroundWidth / 70) + 'px';
 
     const userLeft = xPos - charSize / 2;
-    const userTop = yPos - charSize / 1.75;
+    // החישוב המושלם: אם הרגליים בשישית מהתחתית, הן בדיוק במרחק charSize מלמעלה!
+    const userTop = yPos - charSize; 
 
     userDiv.style.left = userLeft + 'px';
     userDiv.style.top = userTop + 'px';
@@ -292,17 +330,34 @@ function drawCharacters() {
 function findClickedUser(x, y) {
   const rect = groundImage.getBoundingClientRect();
 
-  for (let i = 0; i < charactersData.length; i++) {
-    const user = charactersData[i];
-    const userDiv = document.getElementById(user.username);
-    const userRect = userDiv.getBoundingClientRect();
-    const userLeft = userRect.left - rect.left;
-    const userTop = userRect.top - rect.top;
-    const userRight = userLeft + userRect.width;
-    const userBottom = userTop + userRect.height;
+  // אנחנו ממיינים את השחקנים לפי ה-zIndex (מהגבוה לנמוך) כדי שאם הם חופפים, נלחץ על זה שמקדימה
+  const sortedUsers = [...charactersData].sort((a, b) => b.zIndex - a.zIndex);
 
-    if (x >= userLeft && x <= userRight && y >= userTop && y <= userBottom) {
-      return user;
+  for (let i = 0; i < sortedUsers.length; i++) {
+    const user = sortedUsers[i];
+    const userDiv = document.getElementById(user.username);
+    if (!userDiv) continue;
+
+    // עכשיו אנחנו בודקים את התיבה של התמונה עצמה בלבד, ולא כולל הטקסט או ההודעות
+    const characterImage = userDiv.querySelector('.characterImage');
+    if (!characterImage) continue;
+
+    const charRect = characterImage.getBoundingClientRect();
+    const charLeft = charRect.left - rect.left;
+    const charTop = charRect.top - rect.top;
+    const charRight = charLeft + charRect.width;
+    const charBottom = charTop + charRect.height;
+
+    // קודם כל בודקים אם הלחיצה היא בכלל בתוך הריבוע החוסם
+    if (x >= charLeft && x <= charRight && y >= charTop && y <= charBottom) {
+      
+      // ואז בודקים ברמת הפיקסל כדי לדעת אם לחצנו על צבע או על רקע שקוף
+      const clickRelativeX = x - charLeft;
+      const clickRelativeY = y - charTop;
+
+      if (!isCharacterPixelTransparent(user, clickRelativeX, clickRelativeY, charRect.width, charRect.height)) {
+        return user; // מחזיר את השחקן רק אם הלחיצה הייתה על חלק מצויר שלו
+      }
     }
   }
   return null;
@@ -321,15 +376,21 @@ clickingContainer.addEventListener('click', (event) => {
   if (clickedUser && clickedUser.username !== currentUsername) {
     console.log(clickedUser.username);
   } else {
-    let targetX = clickX;
-    let targetY = clickY;
     const currentPlayer = charactersData.find(player => player.username === currentUsername);
 
     if (currentPlayer) {
+      // בגלל שמיקום ה-Y שלנו מיושר עכשיו בדיוק לרגליים (5/6 מהתמונה),
+      // אין צורך בשום קיזוז! אנחנו רוצים שהרגליים יגיעו בדיוק לאיפה שהעכבר לחץ.
+      let initialTargetX = clickX;
+      let initialTargetY = clickY; 
+
       const currentX = currentPlayer.x;
       const currentY = currentPlayer.y;
-      let angle = Math.atan2(targetY - currentY, targetX - currentX);
+      
+      // 2. מחשבים את הזווית אל נקודת היעד המותאמת
+      let angle = Math.atan2(initialTargetY - currentY, initialTargetX - currentX);
 
+      // (קביעת כיוון הדמות נשארת אותו דבר)
       if (angle >= -Math.PI / 8 && angle < Math.PI / 8) {
         newDirection = 'BodyRight';
       } else if (angle >= Math.PI / 8 && angle < 3 * Math.PI / 8) {
@@ -348,23 +409,44 @@ clickingContainer.addEventListener('click', (event) => {
         newDirection = 'BodyFullBackRight';
       }
 
-      while (isPixelTransparent(x, y)) {
-        targetX -= Math.cos(angle);
-        targetY -= Math.sin(angle);
+      // 3. Raycasting: הולכים מנקודת ההתחלה לעבר היעד ובודקים מתי פוגעים בקיר
+      const totalDistance = Math.hypot(initialTargetX - currentX, initialTargetY - currentY);
+      
+      let safeX = currentX;
+      let safeY = currentY;
+      let stepSize = 5; 
+      let distanceChecked = 0;
 
-        const adjustedX = (targetX / originalBackgroundWidth) * currentBackgroundWidth;
-        const adjustedY = (targetY / originalBackgroundHeight) * currentBackgroundHeight;
+      while (distanceChecked < totalDistance) {
+        // מוודא שהצעד האחרון לא יעבור את המרחק המקסימלי
+        let currentStep = Math.min(stepSize, totalDistance - distanceChecked);
 
-        if (!isPixelTransparent(adjustedX, adjustedY)) {
-          break;
+        let testX = safeX + Math.cos(angle) * currentStep;
+        let testY = safeY + Math.sin(angle) * currentStep;
+
+        const canvasTestX = (testX / originalBackgroundWidth) * currentBackgroundWidth;
+        const canvasTestY = (testY / originalBackgroundHeight) * currentBackgroundHeight;
+
+        // אם הרגליים נוגעות בפיקסל שקוף - עוצרים!
+        if (
+            canvasTestX < 0 || canvasTestX > currentBackgroundWidth ||
+            canvasTestY < 0 || canvasTestY > currentBackgroundHeight ||
+            isPixelTransparent(canvasTestX, canvasTestY)
+           ) {
+          break; 
         }
+
+        safeX = testX;
+        safeY = testY;
+        distanceChecked += currentStep;
       }
 
-      socket.emit('clickPosition', { x: targetX, y: 0.9*targetY });
+      // 4. שולחים את המיקום הבטוח 
+      socket.emit('clickPosition', { x: safeX, y: safeY });
       socket.emit('playerDirection', newDirection);
       
       isMoving = true;
-      targetMovePosition = { x: targetX, y: 0.9 * targetY };
+      targetMovePosition = { x: safeX, y: safeY };
     }
 
     drawCharacters();
